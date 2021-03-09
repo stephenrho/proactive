@@ -1,0 +1,811 @@
+---
+title             : "Supplement to: 'The influence of long-term memory on working memory: Age-differences in proactive facilitation and interference'"
+shorttitle        : "proactive effects of ltm on wm"
+
+author:
+  - name: "Stephen Rhodes"
+    address: "3560 Bathurst Street, Toronto ON, M6A 2E1"
+    affiliation: "1"
+    email: "srhodes@research.baycrest.org"
+    corresponding: yes
+  - name: "Bradley R. Buchsbaum"
+    affiliation: "1,2"
+  - name: "Lynn Hasher"
+    affiliation: "1,2"
+  
+affiliation:
+  - id: "1"
+    institution: "Rotman Research Institute, Baycrest Hospital"
+  - id: "2"
+    institution: "University of Toronto, Department of Psychology"
+
+note: |
+  Draft: `r format(Sys.time(), '%d %B %Y')`
+  
+authornote: |
+  https://github.com/stephenrho/proactive
+
+nocite: |
+  @R-papaja
+
+wordcount         : ""
+bibliography      : ["pro.bib"]
+floatsintext      : yes
+figurelist        : no
+tablelist         : no
+toc               : TRUE
+footnotelist      : no
+linenumbers       : no
+mask              : no
+draft             : no
+urlcolor          : blue
+documentclass     : "apa6"
+classoption       : "doc"
+output: papaja::apa6_pdf
+replace_ampersands: yes
+csl               : https://tinyurl.com/apa6-no-disambiguation
+editor_options: 
+  chunk_output_type: console
+header-includes:
+  - \raggedbottom
+  - \usepackage{float}
+  - \usepackage{setspace}
+  - \AtBeginEnvironment{table}{\singlespacing}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = normalizePath("../"))
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, include = FALSE}
+
+library(plyr)
+#library(ez)
+library(papaja)
+library(xtable)
+#library(lme4)
+#library(psych)
+library(brms)
+library(HDInterval)
+library(vioplot)
+library(knitr)
+library(rstan)
+# library(bayesplot)
+
+#r_refs("pro.bib")
+
+options(mc.cores = parallel::detectCores())
+
+wm_dat = read.csv("data/all_wm.csv")
+learn_dat = read.csv("data/all_learn.csv")
+search_dat = read.csv("data/all_search.csv")
+info = read.csv("data/ppt-info-clean.csv")
+info_all = read.csv("data/ppt-info-all.csv")
+
+source("analysis/useful_functions.R")
+
+info_tab = ddply(info, c("interval", "distraction", "group"), summarize,
+                 N = length(age),
+                 N_female = sum(Sex == "Female"),
+                 M_age = round(mean(age),2), 
+                 SD_age = round(sd(age),2),
+                 range_age = paste(min(age), max(age), sep = "-")
+                 # min_age = min(age),
+                 # max_age = max(age)
+)
+
+groups = c("younger", "older")
+distractions = c("no", "yes")
+intervals = c("2 s", "10 s")
+
+ids = list()
+for (i in intervals){
+  for (d in distractions){
+    for (g in groups){
+      ids[[i]][[d]][[g]] = unique(wm_dat$participant[with(wm_dat, group==g & distraction==d & interval==i)])
+    }
+  }
+}
+
+## load rds files
+learn_brm1 = readRDS("analysis/rds-files/learn_brm1.rds")
+wm_brm1 = readRDS("analysis/rds-files/wm_brm1.rds")
+
+# transform posterior to probabilities
+learn_newd = expand.grid(distraction=c("yes", "no"), 
+                         interval=c("2 s", "10 s"), 
+                         group=c("younger", "older"))
+
+learn_fitp = posterior_linpred(learn_brm1, newdata = learn_newd, re_formula = NA, transform = T)
+
+colnames(learn_fitp) = with(learn_newd, paste(distraction, interval, group, sep = "-"))
+
+# wm
+wm_newd = expand.grid(distraction=NA, # sets to 0
+                      interval=NA, 
+                      group=c("younger", "older"),
+                      item_type = c("match", "mis-match", "new-new", "old-new"))
+
+
+wm_fitp = posterior_linpred(wm_brm1, newdata = wm_newd, re_formula = NA, transform = T)
+
+colnames(wm_fitp) = with(wm_newd, paste(group, item_type, sep = "-"))
+
+# search
+search_acc_brm1 = readRDS("analysis/rds-files/search_acc_brm1.rds")
+search_rt_brm1 = readRDS("analysis/rds-files/search_rt_brm1.rds")
+
+#### extract key quantities here...
+
+search_newd = expand.grid(distraction=NA, # sets to 0
+                      interval=c("2 s", "10 s"), 
+                      section=c("search_alone", "wm"),
+                      group=NA,
+                      ntrials=1)
+
+search_fitp = posterior_linpred(search_acc_brm1, newdata = search_newd,
+                                re_formula = NA, transform = T)
+
+colnames(search_fitp) = with(search_newd, paste(interval, section, sep = "-"))
+
+search_fitp2 = posterior_linpred(search_rt_brm1, newdata = search_newd,
+                                re_formula = NA)
+
+colnames(search_fitp2) = with(search_newd, paste(interval, section, sep = "-"))
+
+## functions
+vioplot2 = function(x, at=1, add=T, col="grey"){
+  # wrapper function to plot vioplot and 
+  # 95% HDI in same call
+  vioplot(x = x, horizontal = T, at = at, 
+          add = add, axes=F, drawRect = F, 
+          col = col, border = NA)
+  
+  hdint = hdi(x)
+  segments(x0 = hdint["lower"], y0 = at, 
+           x1 = hdint["upper"], y1 = at, 
+           lwd = 4, lend=2)
+  
+  points(x = mean(x), y = at, pch=16, cex=1.5)
+}
+
+mh = function(x) c(m=mean(x), HDInterval::hdi(x))
+
+compare_cols = function(preds, col1 = 1, col2 = NULL){
+  if (is.null(col2) & is.null(ncol(preds))){
+    # one col (a vector) given
+    x = mh(preds)
+  } else{
+    x = mh(preds[,col1] - preds[,col2])
+  }
+  sprintf("%.3f [%.3f, %.3f]", x[1], x[2], x[3])
+}
+
+print_row = function(x, row=1){
+  with(x[row,], sprintf("%.3f [%.3f, %.3f]", m, lower, upper))
+}
+
+
+jitts = c("younger" = -.08, "older" = .08)
+cols = c("younger" = "deepskyblue4", "older" = "firebrick")
+
+you_col = cols["younger"]; old_col = cols["older"]; diff_col = "grey"
+
+```
+
+# Learning performance by working memory condition
+
+Cued recall accuracy during the learning phase of the experiment is presented in Figure \ref{fig:learnplot} separately for each experiment group. The groups are defined by manipulations of the working memory task (retention interval, presence of a distracting task), not the learning phase of the experiment which was identical. Therefore, any differences in degree of learning we observe here reflect assignment of individuals to particular conditions.
+
+Participants studied the 30 pairs in groups of 10 and continued to the final test of learning once accuracy was $\geq$ 80% or once three loops had been completed. The plot also shows the number of participants who needed to loop through the pairs 2 or 3 times before moving on to the final test (see text next to the points).
+
+```{r learnplot, fig.cap="Accuracy during the learning phase split by experiment group. Error bars are within-subjects standard errors. The numbers next to the average points are the number of participants who completed each stage of the learning procedure. Participants continued studying pairs in blocks until they reached 80% or greater cued recall accuracy or three sets had been completed."}
+
+# find bad performers
+learn_overall = ddply(learn_dat, c("participant", "interval", "distraction", "group"),
+                      summarize,
+                      N = length(recall_acc), 
+                      acc = mean(recall_acc),
+                      mean_rt = mean(recalled_rt),
+                      prop_noresp = mean(recalled %in% c("?", "")))
+
+#learn_overall[learn_overall$acc < .5,]
+
+learn_agg = ddply(learn_dat, c("participant", "interval", "distraction", "group", "learn_block"), summarize,
+                  N = length(recall_acc), 
+                  acc = mean(recall_acc),
+                  mean_rt = mean(recalled_rt),
+                  prop_noresp = mean(recalled %in% c("?", "")))
+
+learn_agg$learn_block = factor(learn_agg$learn_block, levels = c("1", "2", "3", "final test"))
+
+learn_mse = summarySEwithin(data = learn_agg, measurevar = "acc", betweenvars = c("interval", "distraction", "group"), withinvars = "learn_block")
+
+
+### plot 1: overall performance in each learning block + final test performance
+
+jitts = c("younger" = -.08, "older" = .08)
+cols = c("younger" = "deepskyblue4", "older" = "firebrick")
+
+par(mfcol=c(2,2), mar=c(2,2,2,2), oma=c(0,2,0,0))
+
+for (i in intervals){
+  for (d in distractions){
+    plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+    #box()
+    axis(1, at = 1:4, labels = c("Block 1", "Block 2", "Block 3", "Final"))
+    axis(2)
+    mtext(paste(i, c("with distraction", "no distraction")[(d=="no")+1]), adj = 0)
+    
+    for (g in groups){
+      l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(learn_agg, participant==x), points(jitter(as.numeric(learn_block)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+    }
+    for (g in groups){
+      # error bars
+      with(subset(learn_mse, distraction==d & interval==i & group==g), errBars(means = acc, error = se, xpos = as.numeric(learn_block)+jitts[g]))
+      # points
+      with(subset(learn_mse, distraction==d & interval==i & group==g), points(as.numeric(learn_block)+jitts[g], acc, pch=16, col=cols[g], type='p'))
+      # add number of participants
+      with(subset(learn_mse, distraction==d & interval==i & group==g), text(x = as.numeric(learn_block)+jitts[g]*2, y=acc, labels=N, adj=c(0,1)[(g=="younger")+1], cex=.8))
+      
+    }
+  }
+}
+
+legend("bottomright", legend = groups, pch=16, col=cols, bty='n')
+
+#mtext("Recall accuracy for learning phase", font=2, line=-1, adj=0, outer = T)
+
+mtext("Learning Accuracy", 2, outer = T)
+
+```
+
+```{r, results="hide"}
+# contrasts for text
+learn_yvo = posterior_epred(learn_brm1, newdata = 
+                              expand.grid(distraction=NA,                                                                  interval=NA, 
+                                          group=c("younger", "older")),
+                            re_formula = NA)
+
+learn_2v10 = posterior_epred(learn_brm1, newdata = 
+                               expand.grid(distraction=NA,                                                                  interval=c("2 s", "10 s"), 
+                                           group=NA),
+                             re_formula = NA)
+
+compare_cols(learn_yvo, col1 = 1, col2 = 2)
+
+compare_cols(learn_yvo[,1]) # y
+compare_cols(learn_yvo[,2]) # o
+
+compare_cols(learn_2v10, col1 = 1, col2 = 2)
+
+compare_cols(learn_2v10[,1]) # 2 s
+compare_cols(learn_2v10[,2]) # 10 s
+
+```
+
+All participants completed the final test of learning in which all 30 pairs were tested in a random order by cuing word recall with each image. Results of the full Bayesian generalized mixed effects analysis of final learning accuracy are presented in Table \ref{tab:learntab}. The coefficients for the effects of age-group and interval are credibly different from zero (i.e., zero is not in the 95% highest density interval or 95% HDI). Converting the model fitted values to probabilities, younger adults cued recall accuracy was approximately `r compare_cols(learn_yvo[,1])` (95% HDI) and for older adults `r compare_cols(learn_yvo[,2])` (difference: `r compare_cols(learn_yvo, col1 = 1, col2 = 2)`). Final cued recall accuracy was also slightly higher for the group in the 10 s interval condition (`r compare_cols(learn_2v10[,2])`) relative to those in the 2 s condition (`r compare_cols(learn_2v10[,1])`; difference: `r compare_cols(learn_2v10, col1 = 2, col2 = 1)`). The magnitude of the age-group difference in final learning accuracy was consistent across conditions, as shown in the age group interaction coefficients in Table \ref{tab:learntab}.
+
+```{r learntab, results="asis"}
+
+learn_fpars = grep(pattern = "b_", x = parnames(learn_brm1), value = T)
+
+learn_samps = posterior_samples(learn_brm1, pars=learn_fpars)
+
+learn_tab = t(apply(learn_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x>0)*100)))
+
+learn_tab = learn_tab[learn_fpars,]
+
+# learn_tab
+
+rownames(learn_tab) = c("Intercept", "Distraction", "Interval", "Group",
+                        "Distraction $\\times$ Interval", "Distraction $\\times$ Group",
+                        "Interval $\\times$ Group",
+                        "Distraction $\\times$ Interval $\\times$ Group")
+
+capt = "Results of generalized linear mixed effects model for final learning accuracy (note: coefficients on the log-odds scale). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
+print(xtable(learn_tab, caption = capt, label = 'tab:learntab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(learn_tab)),
+                                                                                                                                                                                                                                                                                               command = c(paste0("\\toprule \n",
+                                                                                                                                                                                                                                                                                                                  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n",
+                                                                                                                                                                                                                                                                                                                  " & Mean & Lower & Upper & Perc $>$ 0 \\\\\n",
+                                                                                                                                                                                                                                                                                                                  "\\midrule \n"),
+                                                                                                                                                                                                                                                                                                           paste0("\\bottomrule \\\\\ "))))
+
+```
+
+# Search performance
+
+The first 4 trials of search alone were excluded as practice (leaving 16 observations) along with the 3 practice working memory trials. For the interval condition of 2 s there was one search trial per working memory trial (16 post-practice observations) and for the interval of 10 s there were 4 search trials during the working memory interval (64 post-practice observations). Figure \ref{fig:searchplot} presents accuracy and reaction time in this task
+
+```{r searchplot, fig.cap="Accuracy (top panels) and mean reaction time (bottom panels) in the search task by interval length and age group. Participants did the search task by itself and during the working memory task interval."}
+# search_acc_brm1 = readRDS("analysis/rds-files/search_acc_brm1.rds")
+# search_rt_brm1 = readRDS("analysis/rds-files/search_rt_brm1.rds")
+
+# wm practice
+search_dat = search_dat[!with(search_dat, section=="wm" & wm_trial < 4), ]
+# search practice
+search_dat = search_dat[!with(search_dat, section=="search_alone" & search_loop.thisRepN < 4), ]
+
+# aggregate
+search_agg = ddply(search_dat, c("participant", "group", "section", "interval"), summarize,
+                   N = length(accuracy),
+                   acc = mean(accuracy),
+                   prop_missed = mean(is.na(s_respright)),
+                   mean_rt = mean(search_resp.rt, na.rm=T))
+
+search_agg = within(search_agg, {
+  interval = as.factor(interval)
+  section = as.factor(section)
+})
+
+search_acc_mse = summarySEwithin(data = search_agg, measurevar = "acc", withinvars = "section", betweenvars = c("group", "interval"))
+search_rt_mse = summarySEwithin(data = na.omit(search_agg), measurevar = "mean_rt", withinvars = "section", betweenvars = c("group", "interval"))
+
+# plot
+par(mfrow=c(2,2), mar=c(2,2,2,2), oma=c(0,2,0,0))
+
+d = "yes"
+# accuracy
+for (i in intervals){
+
+    plot(NA, xlim=c(.7,2.3), ylim=c(0,1), xlab="", ylab="Search Accuracy", axes=F)
+    #box()
+    labs = levels(search_agg$section)
+    labs = gsub("_", " ", labs)
+    axis(1, at = 1:2, labels = labs)
+    axis(2)
+    mtext(i, adj = 0)
+    
+    if (i == "2 s") mtext("Search Accuracy", 2, line = 2)
+    
+    for (g in groups){
+      l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(search_agg, participant==x), points(jitter(as.numeric(section)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+    }
+    for (g in groups){
+      # error bars + points
+      with(subset(search_acc_mse, interval==i & group==g), {
+        errBars(means = acc, error = se, xpos = as.numeric(section)+jitts[g])
+        points(as.numeric(section)+jitts[g], acc, pch=16, col=cols[g], type='b')
+      })
+    }
+}
+
+# rt
+for (i in intervals){
+  
+  plot(NA, xlim=c(.7,2.3), ylim=range(search_agg$mean_rt, na.rm = T), xlab="", ylab="", axes=F)
+  #box()
+  labs = levels(search_agg$section)
+  labs = gsub("_", " ", labs)
+  axis(1, at = 1:2, labels = labs)
+  axis(2)
+  mtext(i, adj = 0)
+  
+  if (i == "2 s") mtext("Search mean RT (s)", 2, line = 2)
+  
+  for (g in groups){
+    l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(search_agg, participant==x), points(jitter(as.numeric(section)+jitts[g], amount = .025), mean_rt, pch=16, col=faintCol(cols[g]), type='p')))
+  }
+  for (g in groups){
+    # error bars + points
+    with(subset(search_rt_mse, interval==i & group==g), {
+      errBars(means = mean_rt, error = se, xpos = as.numeric(section)+jitts[g])
+      points(as.numeric(section)+jitts[g], mean_rt, pch=16, col=cols[g], type='b')
+    })
+  }
+}
+legend("bottomright", legend = groups, pch=16, col=cols, bty='n')
+
+
+```
+
+## Search accuracy
+
+Search accuracy was analyzed via a generalized linear mixed effects model with the same priors as those used in the analyses in the main manuscript. Fixed effects of section (search alone = 1, search + working memory = -1), age group (older = 1, younger = -1), and interval (10 s = 1, 2 s = -1) were included along with their interactions and random participant intercepts and section effects. Estimates of fixed effects are presented in Table \ref{tab:sacctab}. There is a clear main effect of age group, with lower accuracy for older adults (see Figure \ref{fig:searchplot}), and an interaction between interval and section. This interaction is driven by better performance for search alone (`r compare_cols(search_fitp[,1])`) compared to with the working memory task (`r compare_cols(search_fitp[,3])`) in the 2 s condition (difference: `r compare_cols(search_fitp, 1, 3)`), whereas the opposite pattern was seen in the 10 s condition (alone: `r compare_cols(search_fitp[,2])`; with working memory: `r compare_cols(search_fitp[,4])`; difference: `r compare_cols(search_fitp, 2, 4)`).
+
+```{r sacctab, results="asis"}
+
+sacc_fpars = grep(pattern = "b_", x = parnames(search_acc_brm1), value = T)
+
+sacc_samps = posterior_samples(search_acc_brm1, pars=sacc_fpars)
+
+sacc_tab = t(apply(sacc_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x>0)*100)))
+
+sacc_tab = sacc_tab[sacc_fpars,]
+
+rownames(sacc_tab) = c("Intercept", "Interval", "Group", "Section",
+                       "Interval $\\times$ Group",
+                       "Interval $\\times$ Section",
+                       "Group $\\times$ Section",
+                       "Interval $\\times$ Group $\\times$ Section")
+
+capt = "Results of generalized linear mixed effects model for search accuracy (note: coefficients on the log-odds scale). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
+print(xtable(sacc_tab, caption = capt, label = 'tab:sacctab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(sacc_tab)), command = c(paste0("\\toprule \n",  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 \\\\\n", "\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
+
+```
+
+## Search reaction time
+
+Reaction time in the search task was analyzed with a linear mixed effects model with the same fixed and random effects as the analysis of accuracy above. As we are modeling reaction time in seconds we used a Cauchy(1, 1) prior on the intercept term (suggesting we expect average RT to be around 1 s, with a high degree of uncertainty) and Cauchy(0, 1) priors on the other fixed effects. For the standard deviation of random effects we used a half-Cauchy(0, 1) prior and the same LKJ(1) prior on the correlation matrix. Estimates of fixed effects are presented in Table \ref{tab:srttab}. 
+There is a main effect of interval, with faster response times in the 10 s condition relative to the 2 s condition. Older adults were also slower to respond than younger adults. There was also a main effect of section with faster responses for search alone versus search alongside the working memory task. Finally, interval and section interact as reaction times were shorter for search alone (`r compare_cols(search_fitp2[,1])`) relative to search + working memory (`r compare_cols(search_fitp2[,3])`) in the 2 s condition (difference: `r compare_cols(search_fitp2, 1, 3)`). In the 10 s condition reaction times did not significantly differ between search alone (`r compare_cols(search_fitp2[,2])`) and search with the working memory task (`r compare_cols(search_fitp2[,4])`; difference: `r compare_cols(search_fitp2,1,4)`). 
+
+```{r srttab, results="asis"}
+
+srt_fpars = grep(pattern = "b_", x = parnames(search_rt_brm1), value = T)
+
+srt_samps = posterior_samples(search_rt_brm1, pars=srt_fpars)
+
+srt_tab = t(apply(srt_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x>0)*100)))
+
+srt_tab = srt_tab[srt_fpars,]
+
+rownames(srt_tab) = c("Intercept", "Interval", "Group", "Section",
+                       "Interval $\\times$ Group",
+                       "Interval $\\times$ Section",
+                       "Group $\\times$ Section",
+                       "Interval $\\times$ Group $\\times$ Section")
+
+capt = "Results of linear mixed effects model for search reaction time (in seconds). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
+print(xtable(srt_tab, caption = capt, label = 'tab:srttab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(srt_tab)), command = c(paste0("\\toprule \n",  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 \\\\\n", "\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
+
+```
+
+The search data as a whole suggest that introducing the working memory task slowed participants down and reduced accuracy in the 2 s condition. In the 10 s condition participants did not slow down and improved in accuracy when the search task was performed alongside the working memory task. This is possibly due to differences in the amount of practice/experience with the search task between the two conditions, as participants in the 10 s condition completed 4 times as many search problems during the working memory task.
+
+## Low search performers and WM performance
+
+The top panels of Figure \ref{fig:searchplot} shows many participants with low accuracy in the search task. This potentially complicates our interpretation of the search task as being a distraction as low accuracy may reflect disengagement from this task in favor of focusing on maintaining information in working memory [@BarrouilletEtAl2007]. 
+
+To assess possible biases associated with these low performing participants we conducted additional analyses of the working memory data from conditions with distraction. The same model as reported in the main manuscript (omitting fixed effects involving distraction) was fit to data from all participants and again to participants with 70% or higher accuracy in the search task when performed alongside working memory. This omitted 32/46 and 25/47 older participants and 14/47 and 14/50 younger participants in the 2 s and 10 s interval conditions, respectively. Figure \ref{fig:lowsearch} plots the fixed effects estimates from these two models. The two are clearly related and the only deviation (towards the top right of the figure) is the intercept term, as excluding low search performers leads to higher overall working memory accuracy. None of the remaining coefficients clearly differ, suggesting that low performers are not distorting our conclusions regarding working memory performance.
+
+```{r lowsearch, fig.cap="Fixed effects estimates and 95% credible intervals for analysis of working memory data included vs. excluding low search performers."}
+
+wm_distraction_brm1 = readRDS("analysis/rds-files/wm_distraction_brm1.rds")
+wm_distraction_brm2 = readRDS("analysis/rds-files/wm_distraction_brm2.rds")
+
+search_thresh = .7
+
+high_search = subset(search_agg, acc >= search_thresh & section == "wm")
+low_search = subset(search_agg, acc < search_thresh & section == "wm")
+
+# with(low_search, table(interval, group))
+# with(high_search, table(interval, group))
+
+fe1 = as.data.frame(fixef(wm_distraction_brm1))
+fe2 = as.data.frame(fixef(wm_distraction_brm2))
+
+plot(fe1$Estimate, fe2$Estimate, xlim=c(-.8,  1.7), 
+     ylim=c(-.8,  1.7), pch=16, col="grey", xlab="all participants",
+     ylab="excluding low performers")
+abline(0,1)
+
+segments(x0 = fe1$Estimate, y0 = fe2$Q2.5, 
+         x1 = fe1$Estimate, y1 = fe2$Q97.5, col="grey")
+segments(x0 = fe1$Q2.5, y0 = fe2$Estimate, 
+         x1 = fe1$Q97.5, y1 = fe2$Estimate, col="grey")
+
+```
+
+# Relationship between learning and WM performance
+
+To assess the relationship between participants' final level of learning and performance for different item types in the working memory task we estimated a multivariate model with `brms`. In the main analyses, separate generalized mixed effects model were fit to accuracy from the two phases of the experiment with separate random participant effects. In the multivariate model these random participant effects are allowed to correlate across response variables. This involves no aggregation of the data; the data are modeled as they are (zeros and ones) and the correlations are estimated at the 'latent' level [see @rouder2019psychometrics].
+
+For the learning outcome the model was simplified to include a fixed effect of age group and a random participant intercept to capture between-participant variability in performance during part 1 of the experiment. The model for the working memory data included fixed effects of item type (coded as in the main analysis), age group, and their interaction plus a random intercept and random effect for item type. The random item type effect captures individual differences in proactive facilitation (through the contrast of match with new) and proactive interference (contrasts of old-new and mismatch with new). 
+
+```{r cor, fig.height=7, fig.cap="Correlations between final learning and WM performance estimated via a multivariate mixed effects model. Learn = final learning intercept, WM overall = Intercept, WM PF = match vs. other contrast, WM PI = new-new vs. mis-match/old-new contrast, WM M vs. O = mis-match vs. old-new contrast"}
+
+multi_m1 = readRDS("analysis/rds-files/multi_m1.rds")
+
+cor_samps = posterior_samples(multi_m1, pars = "cor")
+
+cor_names = colnames(cor_samps)
+
+cor_names = gsub(pattern = "cor_", "Cor(", cor_names)
+cor_names = gsub(pattern = "participant__", "", cor_names)
+cor_names = gsub(pattern = "accwm_Intercept", "WM Overall", cor_names)
+cor_names = gsub(pattern = "accwm_", "WM", cor_names)
+cor_names = gsub(pattern = "acclearn_", "Learn", cor_names)
+cor_names = gsub(pattern = "Intercept", "", cor_names)
+cor_names = gsub(pattern = "item_typematchVrest", " PF", cor_names)
+cor_names = gsub(pattern = "item_typenewVnonmatch", " PI", cor_names)
+cor_names = gsub(pattern = "item_typemismatchVoldnew", " M vs. O", cor_names)
+cor_names = gsub(pattern = "__", ", ", cor_names)
+cor_names = paste0(cor_names, ")")
+
+colnames(cor_samps) = cor_names
+
+par(mar=c(5, 14, 4, 2)+.1)
+plot(NA, xlim=c(-1, 1), ylim=c(0.5,ncol(cor_samps)+.5), xlab="Correlation", ylab = "", axes=F)
+box()
+axis(1)
+axis(2, at = 1:ncol(cor_samps), 
+     labels = colnames(cor_samps), las=1)
+l=lapply(1:ncol(cor_samps), FUN = function(x) vioplot2(cor_samps[,x], at = x, col = "lightblue"))
+abline(v = 0, lty=2, col="black")
+
+```
+
+Figure \ref{fig:cor} presents estimates of the correlations and their uncertainty. The only correlations that do not include zero in their highest density intervals are between overall performance in the working memory task (WM Overall) and the final level of learning ($r$ = `r compare_cols(preds = cor_samps[,8])`) as well as the correlation between proactive facilitation for match items in the working memory task (WM PF = match vs. other) with level of learning ($r$ = `r compare_cols(preds = cor_samps[,7])`), with higher levels of learning associated with greater facilitation. Estimates of the remaining correlations are associated with a high degree of uncertainty. However, in the case of the correlations between proactive interference (WM PI) and level of learning and between overall WM performance with estimates of proactive facilitation or interference (see bottom two rows in Figure \ref{fig:cor}) we can rule out very strong relationships between the other random effects.
+
+\clearpage
+
+# Further categorizing responses
+
+```{r}
+wmcat_brm1 = readRDS("analysis/rds-files/wmcat_brm1.rds")
+
+# simplify table of fixed effects
+wmcat_fe = as.data.frame(fixef(wmcat_brm1))
+
+# hdi excludes zero
+wmcat_fehdi = posterior_samples(wmcat_brm1, pars = paste0("b_", rownames(wmcat_fe)), fixed = T)
+
+wmcat_fehdi = as.data.frame(t(apply(wmcat_fehdi, 2, function(x) c(mh(x), pg0 = mean(x>0) ))))
+
+wmcat_nonz = wmcat_fehdi[with(wmcat_fehdi, sign(lower) == sign(upper)),]
+
+wmcat_nonz = wmcat_fehdi[with(wmcat_fehdi, (lower < -.1 & upper < -.1) | (lower > .1 & upper > .1) ),]
+
+# wmcat_nonz = wmcat_fehdi[with(wmcat_fehdi, pg0 == 0 | pg0 == 1),]
+
+# extract samples as probabilities
+resp_types = c("correct", "within", "omission", "extra", "ltm", "previous") # in order of prevelance
+
+wmcat_newd = expand.grid(
+  interval=NA, distraction = NA,#c("yes", "no"), 
+  group=c("younger", "older"),
+  item_type = c("match", "mis-match", "new-new", "old-new")
+)
+
+wmcat_fitp = posterior_epred(wmcat_brm1, newdata=wmcat_newd, re_formula=NA)
+
+wmcat_mhdis = list()
+for (rt in resp_types){
+  wmcat_mhdis[[rt]] = cbind(wmcat_newd[,3:4], 
+                            t(apply(wmcat_fitp[,,rt], 2, mh))) 
+}
+colnames(wmcat_fitp) = with(wmcat_newd, paste(group, item_type, sep = "_"))
+
+# difference 
+wmcat_yvo = list()
+for (rt in resp_types){
+  wmcat_yvo[[rt]] = as.data.frame(t(apply(wmcat_fitp[,grep(pattern = "younger", colnames(wmcat_fitp)),rt] - wmcat_fitp[,grep(pattern = "older", colnames(wmcat_fitp)),rt], 2, mh)))
+  
+  rownames(wmcat_yvo[[rt]]) = gsub("younger_", "",
+                                   rownames(wmcat_yvo[[rt]]))
+}
+
+# with(wmcat_yvo$correct, sprintf("%.2f [%.2f, %.2f]", m, lower, upper))
+
+# as a proportion of errors 
+wmcat_fitp2 = wmcat_fitp[,,2:6]
+for (i in 1:5){
+  wmcat_fitp2[,,i] = wmcat_fitp2[,,i]/(1 - wmcat_fitp[,,1])
+}
+
+wmcat_mhdis2 = list()
+for (rt in resp_types[2:6]){
+  wmcat_mhdis2[[rt]] = cbind(wmcat_newd[,3:4], 
+                             t(apply(wmcat_fitp2[,,rt], 2, mh))) 
+}
+
+# difference 
+wmcat_yvo2 = list()
+for (rt in resp_types[2:6]){
+  wmcat_yvo2[[rt]] = as.data.frame(t(apply(wmcat_fitp2[,grep(pattern = "younger", colnames(wmcat_fitp2)),rt] - wmcat_fitp2[,grep(pattern = "older", colnames(wmcat_fitp2)),rt], 2, mh)))
+  
+  rownames(wmcat_yvo2[[rt]]) = gsub("younger_", "",
+                                   rownames(wmcat_yvo2[[rt]]))
+}
+
+```
+
+The main analysis just categorized responses as correct or incorrect. However, there are different, potentially informative, types of incorrect response. To explore this further recalled words in the working memory task were categorized as follows:
+
+- `correct`: the recalled word was that presented with the cue image during the study phase of the trial
+- `omission`: the participant did not attempt to recall a word
+- `within`: the recalled word was presented with another image on this working memory trial (a within list error or transposition)
+- `previous`: the recalled word was presented during the previous working memory trial
+- `ltm`: the recalled word did not fall into any of the above categories and was one of the 30 words that this participant learned during the first phase
+- `extra`: the recalled word does not fall into any of the other categories
+
+This new 6 category outcome was analyzed with a categorical mixed effects model via `brms`. The model included fixed effects of interval, distraction, age group, and item type as well as random participant intercept and slope (item type) terms and a random effect of to-be-recalled word. In the categorical model the correct response category was selected as the reference category and coefficients for the remaining categories are given relative to the reference category:
+$$
+\beta_k = \log\left(\frac{p(\mbox{response} = k)}{p(\mbox{response} = \mbox{correct})}\right).
+$$
+
+In order to simplify the complex results of this model we focus on coefficients for which the HDI firmly excludes zero. Table \ref{tab:cattab} presents coefficients where the HDI excludes absolute parameter values of less than 0.1 (in the model's log ratio units). To summarize, as older adults make more errors, there are age differences for all response types. However, there are no interactions between age and item type, with the exception of the Group $\times$ New-new vs. mis/old interaction for the within response category [explain...]. Further, the factors of interval and distraction appear to play very little role in modulating response categories. 
+
+```{r cattab, results="asis"}
+
+# wmcat_nonz
+
+wmcat_nonz$pg0 = wmcat_nonz$pg0*100
+
+# reformat row labels
+cat_rows = rownames(wmcat_nonz)
+cat_rows = gsub(pattern = ":", " $\\\\times$ ", cat_rows)
+cat_rows = gsub(pattern = "b_muextra_", "extra: ", cat_rows)
+cat_rows = gsub(pattern = "b_multm_", "ltm: ", cat_rows)
+cat_rows = gsub(pattern = "b_muomission_", "omission: ", cat_rows)
+cat_rows = gsub(pattern = "b_muprevious_", "previous: ", cat_rows)
+cat_rows = gsub(pattern = "b_muwithin_", "within: ", cat_rows)
+cat_rows = gsub(pattern = "distraction1", "Distraction", cat_rows)
+cat_rows = gsub(pattern = "group1", "Group", cat_rows)
+cat_rows = gsub(pattern = "interval1", "Interval", cat_rows)
+cat_rows = gsub(pattern = "item_typematchVrest", "Match vs. other", cat_rows)
+cat_rows = gsub(pattern = "item_typenewVnonmatch", "New-new vs. mis/old", cat_rows)
+cat_rows = gsub(pattern = "item_typemismatchVoldnew", "Mis-match vs. old-new", cat_rows)
+
+rownames(wmcat_nonz) = cat_rows
+
+capt = "Results of categorical model on working memory responses. Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero. Note we have only selected coefficients where the HDI excludes $\\pm$ 0.1."
+print(xtable(wmcat_nonz, caption = capt, label = 'tab:cattab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = function(x){x}, floating=TRUE, table.placement = 't', comment=F, scalebox = .7, add.to.row = list(pos = list(-1, nrow(wmcat_nonz)), command=c(paste0("\\toprule \n", " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 \\\\\n","\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
+
+```
+
+```{r cat1, fig.cap="Probability of particular response categories by item type, distraction, and age group. Posterior mean and 95% highest density interval. Text above points gives posterior mean and HDI of group difference for that item type."}
+
+# jitts[["younger"]] = -.1
+# jitts[["older"]] = .1
+
+par(mfrow=c(3,2), mar=c(2,2,2,2), oma=c(0,2,0,0))
+for (i in 1:length(resp_types)){
+  rt = resp_types[i]
+  tmp = wmcat_mhdis[[rt]]
+  
+  yl = with(tmp,  range(c(lower, upper)))
+  
+  yl[1] = ifelse(yl[1] < .1, 0, yl[1])
+  
+  yl[2] = yl[2] + diff(yl)*.4
+  
+  plot(NA, xlim=c(.7,4.3), ylim=yl, xlab="", ylab="", axes=F)
+  if (yl[2] > 1){
+    axis(2, at = round(seq(from=yl[1], to=1, length.out=5), 2))
+  } else {
+    axis(2)
+  }
+  
+  axis(1, at = 1:4, labels = levels(tmp$item_type))
+  mtext(text = rt, adj = 0)
+  
+  if (rt == "correct"){
+    legend("bottomleft", 
+           legend = c("younger", "older"), 
+           col = c(cols[["younger"]], cols[["older"]]),
+           pch = c(16,16), bty="n"
+    )
+  }
+  
+  # add data
+  for (ag in c("younger", "older")){
+    pty = c(16,15)[1]
+    lty = c(1,2)[1]
+    
+    with(subset(tmp, group == ag), 
+         errBars(lower=lower, upper=upper, 
+                 xpos = as.numeric(item_type)+jitts[[ag]]))
+    
+    with(subset(tmp, group == ag), 
+         points(as.numeric(item_type)+jitts[[ag]], m, pch=pty, lty=lty, 
+                type="b", col=cols[[ag]]))
+  }
+  # add text age differences
+  text(x = 1:4, y = yl[2], 
+       labels = with(wmcat_yvo[[rt]], sprintf("%.2f\n[%.2f, %.2f]", m, lower, upper)), adj=c(.5, 1), cex=.7)
+}
+
+mtext(text = "p(Response)", side = 2, outer = T, line=.7)
+
+
+```
+
+Figure \ref{fig:cat1} presents the estimated response probabilities by age group and item type. In Figure \ref{fig:cat2} we have rescaled the probabilities to account for the fact that older adults make more errors. In this figure the values reflect the estimated proportion of errors that fall into each response category. Crucially, it is clear that, once we account for differences in error rates, older adults do not exhibit higher rates of ltm intrusions.
+
+```{r cat2, fig.cap="Probability of error response categories as a proportion of errors (p(Response) / [1 - p(correct)]). Posterior mean and 95% highest density interval. Text above points gives posterior mean and HDI of group difference for that item type."}
+
+par(mfrow=c(3,2), mar=c(2,2,2,2), oma=c(0,2,0,0))
+
+plot(NA, xlim=c(.7,4.3), ylim=yl, xlab="", ylab="", axes=F)
+legend("bottomleft", 
+       legend = c("younger", "older"), 
+       col = c(cols[["younger"]], cols[["older"]]),
+       pch = c(16,16), bty="n"
+)
+for (i in 2:length(resp_types)){
+  rt = resp_types[i]
+  tmp = wmcat_mhdis2[[rt]]
+  
+  yl = with(tmp,  range(c(lower, upper)))
+  
+  yl[1] = ifelse(yl[1] < .1, 0, yl[1])
+  
+  yl[2] = yl[2] + diff(yl)*.4
+  
+  plot(NA, xlim=c(.7,4.3), ylim=yl, xlab="", ylab="", axes=F)
+  if (yl[2] > 1){
+    axis(2, at = round(seq(from=yl[1], to=1, length.out=5), 2))
+  } else {
+    axis(2)
+  }
+  
+  axis(1, at = 1:4, labels = levels(tmp$item_type))
+  mtext(text = rt, adj = 0)
+  
+  # add data
+  for (ag in c("younger", "older")){
+    
+    pty = c(16,15)[1]
+    lty = c(1,2)[1]
+    
+    with(subset(tmp, group == ag), 
+         errBars(lower=lower, upper=upper, 
+                 xpos = as.numeric(item_type)+jitts[[ag]]))
+    
+    with(subset(tmp, group == ag), 
+         points(as.numeric(item_type)+jitts[[ag]], m, pch=pty, lty=lty, 
+                type="b", col=cols[[ag]]))
+  }
+  # add text age differences
+  text(x = 1:4, y = yl[2], 
+       labels = with(wmcat_yvo2[[rt]], sprintf("%.2f\n[%.2f, %.2f]", m, lower, upper)), adj=c(.5, 1), cex=.7)
+}
+
+mtext(text = "As proportion of errors: p(Response) / (1 - p(correct))", side = 2, outer = T, line=.7)
+
+```
+
+This is also shown in Figure \ref{fig:catpost} which plots contrasts of different pair types to the new-new baseline for this rescaled measure (p(response) as a proportion of errors). Focusing on the differences between younger and older participants (the gray densities), perhaps the clearest difference in response types is in the within category. Specifically, it appears that, relative to new-new, younger adults were less likely to make within list errors (i.e., transpositions) for mis-match and old-new pairs. This is not seen in the older group.
+
+```{r catpost, fig.cap = "Posterior contrasts (density, posterior mean and 95% highest density intervals) for the different working memory response categories (expressed as a proportion of errors)", fig.height=8, fig.width=6}
+
+par(mfrow=c(3,2), mar=c(2,4,2,2), oma=c(3,3,0,0))
+
+plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="", axes=F)
+
+legend(x = 4.3/2, y = .5, legend = c("younger", "older", "younger - older\ndifference"), 
+       pch = 15, col = c(you_col, old_col, diff_col), bty="n", xjust = .5, yjust = .5, cex = 1.1)
+
+for (i in 2:length(resp_types)){
+  rt = resp_types[i]
+  
+  tmp = wmcat_fitp2[,,rt]
+  
+  ym = tmp[,"younger_match"] - tmp[,"younger_new-new"]
+  om = tmp[,"older_match"] - tmp[,"older_new-new"]
+  ymm = tmp[,"younger_mis-match"] - tmp[,"younger_new-new"]
+  omm = tmp[,"older_mis-match"] - tmp[,"older_new-new"]
+  yon = tmp[,"younger_old-new"] - tmp[,"younger_new-new"]
+  oon = tmp[,"older_old-new"] - tmp[,"older_new-new"]
+  
+  plot(NA, xlim=range(c(ym,om,ymm,omm,yon,oon)), ylim=c(0.5,6.5), xlab="Difference in working memory accuracy from new-new", ylab = "", axes=F)
+  box()
+  axis(1)
+  axis(2, at = c(5.5, 3.5, 1.5), 
+       labels = c("match", "mis-match", "old-new"), las=1)
+  
+  vioplot2(ym, at = 6, col = you_col)
+  vioplot2(om, at = 5.5, col = old_col)
+  vioplot2(ym - om, at = 5, col = diff_col)
+  
+  vioplot2(ymm, at = 4, col = you_col)
+  vioplot2(omm, at = 3.5, col = old_col)
+  vioplot2(ymm - omm, at = 3, col = diff_col)
+  
+  vioplot2(yon, at = 2, col = you_col)
+  vioplot2(oon, at = 1.5, col = old_col)
+  vioplot2(yon - oon, at = 1, col = diff_col)
+  
+  abline(v=0, lty=2)
+  mtext(text = rt, adj = 0)
+}
+
+mtext("Difference from new-new in p(response) as a proportion of errors", 1, outer = T, line=1)
+
+```
+
+\clearpage
+
+# References
