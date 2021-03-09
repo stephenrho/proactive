@@ -1,2 +1,14 @@
 analysis/rds-files/
 *.rds
+.Rproj.user
+*.Rproj
+*.tex
+*.aux
+*.log
+.Rhistory
+.~lock*
+sub1-pbr/
+pro_files/
+writing-notes.txt
+comments/
+pro-sup_files/
