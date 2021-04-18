@@ -10,10 +10,17 @@ library(plyr)
 library(brms)
 library(HDInterval)
 library(vioplot)
+library(ggplot2)
 
 mh = function(x) c(m=mean(x), hdi(x))
 
 options(mc.cores = parallel::detectCores())
+
+nchains=4
+nwarm=1000
+niter=3500
+
+(niter- nwarm)*nchains # total samples
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
@@ -108,7 +115,7 @@ mtext("Learning Accuracy", 2, outer = T)
 par(mfcol=c(1,1))
 
 ## analysis
-LOAD = T # set to F to (re-)run models
+LOAD = F # set to F to (re-)run models
 
 learn_dat = within(learn_dat, {
   distraction = as.factor(distraction)
@@ -126,7 +133,7 @@ learn_dat$word_fac = as.factor(learn_dat$word) # for random effect
 if (!LOAD){
   # priors
   priors = c(set_prior("cauchy(0, 2.5)", class = "Intercept"),
-             set_prior("cauchy(0, 2.5)", class = "b"),
+             set_prior("cauchy(0, 1)", class = "b"),
              set_prior("cauchy(0, 2.5)", class = "sd"))
   
   # fit model
@@ -134,7 +141,12 @@ if (!LOAD){
                      (1 | participant) + (1 | word_fac), 
                    data = subset(learn_dat, learn_block=="final test"), 
                    family = bernoulli(link = "logit"), 
-                   prior = priors, save_all_pars = T)
+                   prior = priors, 
+                   sample_prior = "yes",
+                   chains=nchains,
+                   iter=niter,
+                   warmup=nwarm
+  )
   
   saveRDS(learn_brm1, file = "rds-files/learn_brm1.rds")
   
@@ -202,7 +214,7 @@ vioplot2(yvn, at = 2)
 s2vs10 = .5*((learn_fitp[,"yes-10 s-younger"] - learn_fitp[,"yes-10 s-older"]) +
                (learn_fitp[,"no-10 s-younger"] - learn_fitp[,"no-10 s-older"])) -
   .5*( (learn_fitp[,"yes-2 s-younger"] - learn_fitp[,"yes-2 s-older"])+
-        (learn_fitp[,"no-2 s-younger"] - learn_fitp[,"no-2 s-older"]))
+         (learn_fitp[,"no-2 s-younger"] - learn_fitp[,"no-2 s-older"]))
 
 vioplot2(s2vs10, at = 1)
 
@@ -265,7 +277,7 @@ legend("bottomright", legend = groups, pch=16, col=cols, bty='n')
 mtext("WM Accuracy", 2, outer = T)
 
 par(mfcol=c(1,1))
-    
+
 ## analysis (LOAD is set above)
 
 wm_dat = within(wm_dat, {
@@ -288,10 +300,11 @@ contrasts(wm_dat$item_type) = cbind(matchVrest = c(1,-1/3,-1/3,-1/3),
 
 wm_dat$word_fac = as.factor(wm_dat$word) # for random effect
 
+
 if (!LOAD){
   # priors
   priors = c(set_prior("cauchy(0, 2.5)", class = "Intercept"),
-             set_prior("cauchy(0, 2.5)", class = "b"),
+             set_prior("cauchy(0, 1)", class = "b"),
              set_prior("cauchy(0, 2.5)", class = "sd"),
              set_prior("lkj(1)", class = "cor"))
   
@@ -299,10 +312,16 @@ if (!LOAD){
                   (1 + item_type | participant) + (1 | word_fac), 
                 data = wm_dat, 
                 family = bernoulli(link = "logit"), 
-                prior = priors, save_all_pars = T)
+                prior = priors, 
+                sample_prior = "yes",
+                chains=nchains,
+                iter=niter,
+                warmup=nwarm
+  )
+  
+  # summary(wm_brm1_ml)
   
   saveRDS(wm_brm1, file = "rds-files/wm_brm1.rds")
-
 } else {
   wm_brm1 = readRDS("rds-files/wm_brm1.rds")
 }
@@ -362,12 +381,69 @@ legend(x = 0.35, y = 0.5, legend = c("younger", "older", "younger - older\ndiffe
 par(mar=c(5, 4, 4, 2)+.1)
 
 
+# Bayes factors
+
+# age-group difference in new vs. recombined effect
+hypothesis(x = wm_brm1, "group1:item_typenewVnonmatch > 0")
+# all posterior samples are > 0 so Inf support according to hypothesis
+# BF should be 
+(niter - nwarm)*nchains
+# to-1 to account for finite samples
+
+# new vs non-match effect in each group - old then young
+hypothesis(x = wm_brm1, "item_typenewVnonmatch + 1 * group1:item_typenewVnonmatch = 0")
+hypothesis(x = wm_brm1, "item_typenewVnonmatch + -1 * group1:item_typenewVnonmatch = 0")
+
+# age difference in facilitation
+(h = hypothesis(x = wm_brm1, "group1:item_typematchVrest = 0"))
+
+plot(h, plot=F)[[1]] +
+  coord_cartesian(xlim = c(-100, 100))
+
+# the default ones don't look right... maybe some way to change bw?
+# either way, let's make a base version...
+
+dpri = density(prior_samples(wm_brm1, pars = "b_group1:item_typematchVrest")[[1]], 
+               bw = 1/3, from=-10, to=10)
+dpost = density(posterior_samples(wm_brm1, pars = "b_group1:item_typematchVrest")[[1]], 
+                bw = 1/3, from=-10, to=10)
+
+plot(dpost, main="", xlim=c(-5,5), ylim=c(0,1.3), col="violet")
+lines(dpri, col = "blue")
+abline(v=0, col="grey", lty=2)
+
+legend("topleft", lty=c(1,1), col=c("blue", "violet"),
+       text.col = c("blue", "violet"),
+       legend = c("prior", "posterior"))
+
+# eval densities at zero
+d1 = approx(dpri$x, dpri$y, xout = 0)$y
+d2 = approx(dpost$x, dpost$y, xout = 0)$y
+
+d2/d1
+# the density method in brms::hypothesis() is different (see https://github.com/paul-buerkner/brms/blob/master/R/hypothesis.R)
+# but this gives a similar answer
+
+points(0, d2, col="violet", pch=16)
+points(0, d1, col="blue", pch=16)
+
+# other interactions of interest
+
+
+hypothesis(x = wm_brm1, "distraction1:item_typenewVnonmatch = 0")
+hypothesis(x = wm_brm1, "interval1:item_typenewVnonmatch = 0")
+
+hypothesis(x = wm_brm1, "distraction1:group1:item_typenewVnonmatch = 0")
+hypothesis(x = wm_brm1, "interval1:group1:item_typenewVnonmatch = 0")
+
+hypothesis(x = wm_brm1, "distraction1:interval1:group1:item_typenewVnonmatch = 0")
+
 ## focus on new-new trials
 
 if (!LOAD){
   # priors
   priors = c(set_prior("cauchy(0, 2.5)", class = "Intercept"),
-             set_prior("cauchy(0, 2.5)", class = "b"),
+             set_prior("cauchy(0, 1)", class = "b"),
              set_prior("cauchy(0, 2.5)", class = "sd"))
   
   # do new pairs show distraction/interval effects
@@ -375,7 +451,11 @@ if (!LOAD){
                      (1 | participant) + (1 | word_fac), 
                    data = subset(wm_dat, item_type == "new-new"), 
                    family = bernoulli(link = "logit"), 
-                   prior = priors)
+                   prior = priors,
+                   sample_prior = "yes",
+                   chains=nchains,
+                   iter=niter,
+                   warmup=nwarm)
   
   saveRDS(wmnew_brm1, file = "rds-files/wmnew_brm1.rds")
   
@@ -396,7 +476,7 @@ if (!LOAD){ # LOAD is set above
             family = categorical(link = "logit"))
   
   priors = c(set_prior("cauchy(0, 2.5)", class = "Intercept"),
-             set_prior("cauchy(0, 2.5)", class = "b"),
+             set_prior("cauchy(0, 1)", class = "b"),
              set_prior("cauchy(0, 2.5)", class = "sd", 
                        coef = "Intercept", group = "participant", dpar="muextra"),
              set_prior("cauchy(0, 2.5)", class = "sd", 
@@ -459,8 +539,13 @@ if (!LOAD){ # LOAD is set above
                      (1 + item_type | participant) + (1 | word_fac), 
                    data = wm_dat, 
                    family = categorical(link = "logit"), 
-                   prior = priors, save_all_pars = T,
-                   control=list(max_treedepth=15))
+                   prior = priors,
+                   control=list(max_treedepth=15),
+                   sample_prior = "yes",
+                   chains=nchains,
+                   iter=niter,
+                   warmup=nwarm
+                   )
   
   saveRDS(wmcat_brm1, file = "rds-files/wmcat_brm1.rds")
   
@@ -679,9 +764,9 @@ contrasts(multidat$group) = c(-1,1)
 
 if (!LOAD){
   multi_form = mvbf(
-    bf(acc_wm | subset(wm) ~ item_type*group + (1 + item_type |p| participant), 
+    brms::bf(acc_wm | subset(wm) ~ item_type*group + (1 + item_type |p| participant), 
        family = bernoulli()),
-    bf(acc_learn | subset(learn) ~ group + (1 |p| participant), 
+    brms::bf(acc_learn | subset(learn) ~ group + (1 |p| participant), 
        family = bernoulli()), 
     rescor = F
   )
@@ -692,15 +777,20 @@ if (!LOAD){
     set_prior("cauchy(0, 2.5)", class = "Intercept", resp = "acclearn"),
     set_prior("cauchy(0, 2.5)", class = "Intercept", resp = "accwm"),
     #set_prior("cauchy(0, 2.5)", class = "b"),
-    set_prior("cauchy(0, 2.5)", class = "b", resp = "acclearn"),
-    set_prior("cauchy(0, 2.5)", class = "b", resp = "accwm"),
+    set_prior("cauchy(0, 1)", class = "b", resp = "acclearn"),
+    set_prior("cauchy(0, 1)", class = "b", resp = "accwm"),
     set_prior("cauchy(0, 2.5)", class = "sd", resp = "acclearn"),
     set_prior("cauchy(0, 2.5)", class = "sd", resp = "accwm"),
     set_prior("lkj(1)", class = "cor"))
   
-  multi_m1 = brm(multi_form, data = multidat, prior = multi_priors,
+  multi_m1 = brm(multi_form, data = multidat, 
+                 prior = multi_priors,
                  control=list(adapt_delta=0.99), 
-                 iter = 4000, warmup = 1000)
+                 sample_prior = "yes",
+                 chains=nchains,
+                 iter=niter,
+                 warmup=nwarm
+                 )
   
   saveRDS(multi_m1, file = "rds-files/multi_m1.rds")
   
@@ -737,6 +827,12 @@ axis(2, at = 1:ncol(cor_samps),
 l=lapply(1:ncol(cor_samps), FUN = function(x) vioplot2(cor_samps[,x], at = x, col = "lightblue"))
 abline(v = 0, lty=2, col="black")
 
+# sd bayes factors
+
+hypothesis(multi_m1, "participant__accwm_Intercept__acclearn_Intercept = 0", class = "cor")
+hypothesis(multi_m1, "participant__accwm_item_typematchVrest__acclearn_Intercept = 0", class = "cor")
+hypothesis(multi_m1, "participant__accwm_item_typenewVnonmatch__acclearn_Intercept = 0", class = "cor")
+
 ### ### ### ### ### ### ### ### ### ### 
 ### SEARCH TASK PERFORMANCE -----
 ### ### ### ### ### ### ### ### ### ### 
@@ -771,7 +867,7 @@ contrasts(search_acc$interval)
 if (!LOAD){
   # priors
   priors = c(set_prior("cauchy(0, 2.5)", class = "Intercept"),
-             set_prior("cauchy(0, 2.5)", class = "b"),
+             set_prior("cauchy(0, 1)", class = "b"),
              set_prior("cauchy(0, 2.5)", class = "sd"),
              set_prior("lkj(1)", class = "cor"))
   
@@ -779,8 +875,13 @@ if (!LOAD){
                           (1 + section | participant), 
                         data = search_acc, 
                         family = binomial(link = "logit"), 
-                        prior = priors)
-
+                        prior = priors,
+                        sample_prior = "yes",
+                        chains=nchains,
+                        iter=niter,
+                        warmup=nwarm
+                        )
+  
   saveRDS(search_acc_brm1, file = "rds-files/search_acc_brm1.rds")
   
   priors = c(set_prior("cauchy(1, 1)", class = "Intercept"),
@@ -789,10 +890,14 @@ if (!LOAD){
              set_prior("lkj(1)", class = "cor"))
   
   search_rt_brm1 = brm(search_resp.rt ~ interval*group*section + 
-                          (1 + section | participant), 
-                        data = search_dat, 
-                        family = gaussian(link = "identity"), 
-                        prior = priors)
+                         (1 + section | participant), 
+                       data = search_dat, 
+                       family = gaussian(link = "identity"), 
+                       prior = priors,
+                       sample_prior = "yes",
+                       chains=nchains,
+                       iter=niter,
+                       warmup=nwarm)
   
   saveRDS(search_rt_brm1, file = "rds-files/search_rt_brm1.rds")
   
@@ -823,26 +928,26 @@ par(mfrow=c(2,2), mar=c(2,2,2,2), oma=c(0,2,0,0))
 d = "yes"
 # accuracy
 for (i in intervals){
-
-    plot(NA, xlim=c(.7,2.3), ylim=c(0,1), xlab="", ylab="Search Accuracy", axes=F)
-    #box()
-    labs = levels(search_agg$section)
-    axis(1, at = 1:2, labels = labs)
-    axis(2)
-    mtext(i, adj = 0)
-    
-    if (i == "2 s") mtext("Search Accuracy", 2, line = 2)
-    
-    for (g in groups){
-      l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(search_agg, participant==x), points(jitter(as.numeric(section)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
-    }
-    for (g in groups){
-      # error bars + points
-      with(subset(search_acc_mse, interval==i & group==g), {
-        errBars(means = acc, error = se, xpos = as.numeric(section)+jitts[g])
-        points(as.numeric(section)+jitts[g], acc, pch=16, col=cols[g], type='b')
-      })
-    }
+  
+  plot(NA, xlim=c(.7,2.3), ylim=c(0,1), xlab="", ylab="Search Accuracy", axes=F)
+  #box()
+  labs = levels(search_agg$section)
+  axis(1, at = 1:2, labels = labs)
+  axis(2)
+  mtext(i, adj = 0)
+  
+  if (i == "2 s") mtext("Search Accuracy", 2, line = 2)
+  
+  for (g in groups){
+    l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(search_agg, participant==x), points(jitter(as.numeric(section)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+  }
+  for (g in groups){
+    # error bars + points
+    with(subset(search_acc_mse, interval==i & group==g), {
+      errBars(means = acc, error = se, xpos = as.numeric(section)+jitts[g])
+      points(as.numeric(section)+jitts[g], acc, pch=16, col=cols[g], type='b')
+    })
+  }
 }
 
 # rt
@@ -882,10 +987,10 @@ with(subset(search_agg, participant %in% high_search & section == "wm"),
      table(group, interval))
 
 if (!LOAD){
-
+  
   # priors
   priors = c(set_prior("cauchy(0, 2.5)", class = "Intercept"),
-             set_prior("cauchy(0, 2.5)", class = "b"),
+             set_prior("cauchy(0, 1)", class = "b"),
              set_prior("cauchy(0, 2.5)", class = "sd"),
              set_prior("lkj(1)", class = "cor"))
   
@@ -894,7 +999,12 @@ if (!LOAD){
                               (1 + item_type | participant) + (1 | word_fac), 
                             data = subset(wm_dat, distraction=="yes"), 
                             family = bernoulli(link = "logit"), 
-                            prior = priors)
+                            prior = priors,
+                            sample_prior = "yes",
+                            chains=nchains,
+                            iter=niter,
+                            warmup=nwarm
+                            )
   
   saveRDS(wm_distraction_brm1, file = "rds-files/wm_distraction_brm1.rds")
   
@@ -904,10 +1014,15 @@ if (!LOAD){
                             data = subset(wm_dat, distraction=="yes" & 
                                             participant %in% high_search), 
                             family = bernoulli(link = "logit"), 
-                            prior = priors)
+                            prior = priors,
+                            sample_prior = "yes",
+                            chains=nchains,
+                            iter=niter,
+                            warmup=nwarm
+                            )
   
   saveRDS(wm_distraction_brm2, file = "rds-files/wm_distraction_brm2.rds")
-    
+  
 } else {
   wm_distraction_brm1 = readRDS("rds-files/wm_distraction_brm1.rds")
   wm_distraction_brm2 = readRDS("rds-files/wm_distraction_brm2.rds")
