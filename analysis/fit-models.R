@@ -222,6 +222,19 @@ abline(v=0, lty=2)
 
 par(mar=c(5, 4, 4, 2)+.1)
 
+# hypotheses
+
+hy = c("distraction1 = 0",
+       "interval1 = 0",
+       "group1 < 0",
+       "distraction1:interval1 = 0",
+       "distraction1:group1 = 0",
+       "interval1:group1 = 0",
+       "distraction1:interval1:group1 = 0"
+)
+
+(learn_hy = hypothesis(learn_brm1, hy))
+
 ### ### ### ### ### ### ### ### ### ### 
 ### WORKING MEMORY -----
 ### ### ### ### ### ### ### ### ### ### 
@@ -427,18 +440,52 @@ d2/d1
 points(0, d2, col="violet", pch=16)
 points(0, d1, col="blue", pch=16)
 
-# other interactions of interest
+# all hypotheses together
 
+hy = c("distraction1 > 0",
+       "distraction1 = 0",
+       "item_typenewVnonmatch > 0",
+       "item_typematchVrest > 0",
+       "item_typemismatchVoldnew = 0",
+       "group1:item_typenewVnonmatch > 0",
+       "group1:item_typenewVnonmatch = 0",
+       "item_typenewVnonmatch + 1 * group1:item_typenewVnonmatch = 0", # o
+       "item_typenewVnonmatch + -1 * group1:item_typenewVnonmatch = 0", # y
+       "group1:item_typematchVrest = 0",
+       "distraction1:interval1 = 0",
+       "distraction1:item_typenewVnonmatch = 0",
+       "interval1:item_typenewVnonmatch = 0",
+       "distraction1:group1:item_typenewVnonmatch = 0",
+       "interval1:group1:item_typenewVnonmatch = 0",
+       "distraction1:interval1:group1:item_typenewVnonmatch = 0"
+       )
 
-hypothesis(x = wm_brm1, "distraction1:item_typenewVnonmatch = 0")
-hypothesis(x = wm_brm1, "interval1:item_typenewVnonmatch = 0")
+(wm_hy = hypothesis(wm_brm1, hy))
 
-hypothesis(x = wm_brm1, "distraction1:group1:item_typenewVnonmatch = 0")
-hypothesis(x = wm_brm1, "interval1:group1:item_typenewVnonmatch = 0")
-
-hypothesis(x = wm_brm1, "distraction1:interval1:group1:item_typenewVnonmatch = 0")
 
 ## focus on new-new trials
+
+wm_dat$all_new = NA
+# figure out if all pairs were new or not
+for (i in unique(wm_dat$participant)){
+  for (j in 1:16){
+    tmp = with(wm_dat, participant == i & trial_no == j)
+    stopifnot(sum(tmp)==4)
+    if (all(wm_dat$item_type[tmp] == "new-new")){
+      wm_dat$all_new[tmp] = "yes"
+    } else{
+      wm_dat$all_new[tmp] = "no"
+    }
+  }
+}
+
+table(wm_dat$all_new)
+
+wm_dat_new = subset(wm_dat, item_type == "new-new")
+
+wm_dat_new$all_new = as.factor(wm_dat_new$all_new)
+
+contrasts(wm_dat_new$all_new) = c(-1,1)
 
 if (!LOAD){
   # priors
@@ -449,7 +496,7 @@ if (!LOAD){
   # do new pairs show distraction/interval effects
   wmnew_brm1 = brm(recall_acc ~ distraction*interval*group + 
                      (1 | participant) + (1 | word_fac), 
-                   data = subset(wm_dat, item_type == "new-new"), 
+                   data = wm_dat_new, 
                    family = bernoulli(link = "logit"), 
                    prior = priors,
                    sample_prior = "yes",
@@ -459,9 +506,35 @@ if (!LOAD){
   
   saveRDS(wmnew_brm1, file = "rds-files/wmnew_brm1.rds")
   
+  # does the trial context (all new or not) affect things?
+  # do new pairs show distraction/interval effects
+  wmnew_brm2 = brm(recall_acc ~ all_new*distraction*interval*group + 
+                     (1 + all_new | participant) + (1 | word_fac), 
+                   data = wm_dat_new, 
+                   family = bernoulli(link = "logit"), 
+                   prior = priors,
+                   sample_prior = "yes",
+                   chains=nchains,
+                   iter=niter,
+                   warmup=nwarm)
+  
+  saveRDS(wmnew_brm2, file = "rds-files/wmnew_brm2.rds")
+  
 } else {
   wmnew_brm1 = readRDS("rds-files/wmnew_brm1.rds")
+  wmnew_brm2 = readRDS("rds-files/wmnew_brm2.rds")
 }
+
+hy = c("all_new1 = 0", "all_new1:distraction1 = 0", "all_new1:interval1 = 0",
+       "all_new1:group1 = 0", "all_new1 + all_new1:group1 * 1 = 0",
+       "all_new1 + all_new1:group1 * -1 = 0", "all_new1:distraction1:interval1 = 0",
+       "all_new1:distraction1:group1  = 0", "all_new1:interval1:group1 = 0",
+       "all_new1:distraction1:interval1:group1 = 0")
+
+(wmnew_hy = hypothesis(wmnew_brm2, hy))
+
+wmnew_hy$hypothesis
+
 
 ### ### ### ### ### ### ### ### ### ### 
 ### WM: DIFFERENT RESPONSE CATEGORIES -----

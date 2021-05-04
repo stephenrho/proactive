@@ -6,7 +6,7 @@ author:
   - name: "Stephen Rhodes"
     address: "3560 Bathurst Street, Toronto ON, M6A 2E1"
     affiliation: "1"
-    email: "srhodes@research.baycrest.org"
+    email: "steverho89@gmail.com"
     corresponding: yes
   - name: "Bradley R. Buchsbaum"
     affiliation: "1,2"
@@ -55,7 +55,7 @@ header-includes:
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = normalizePath("../"))
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning =F, message = F)
 ```
 
 ```{r, include = FALSE}
@@ -111,6 +111,8 @@ for (i in intervals){
 ## load rds files
 learn_brm1 = readRDS("analysis/rds-files/learn_brm1.rds")
 wm_brm1 = readRDS("analysis/rds-files/wm_brm1.rds")
+
+wmnew_brm2 = readRDS("analysis/rds-files/wmnew_brm2.rds")
 
 # transform posterior to probabilities
 learn_newd = expand.grid(distraction=c("yes", "no"), 
@@ -185,7 +187,6 @@ compare_cols = function(preds, col1 = 1, col2 = NULL){
 print_row = function(x, row=1){
   with(x[row,], sprintf("%.3f [%.3f, %.3f]", m, lower, upper))
 }
-
 
 jitts = c("younger" = -.08, "older" = .08)
 cols = c("younger" = "deepskyblue4", "older" = "firebrick")
@@ -297,20 +298,43 @@ learn_tab = t(apply(learn_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = me
 
 learn_tab = learn_tab[learn_fpars,]
 
-# learn_tab
+learn_tab = as.data.frame(learn_tab)
+
+# add bfs
+learn_bfs = hypothesis(learn_brm1, paste0(rownames(fixef(learn_brm1)), " = 0"))
+
+enull = learn_bfs$hypothesis$Evid.Ratio
+ealt = 1/learn_bfs$hypothesis$Evid.Ratio
+
+learn_tab$bf_01 = format(round(enull,2), scientific = F, digits = 2, trim=T)
+learn_tab$bf_10 = format(round(ealt, 2), digits = 2, scientific = F, trim=T)
+
+learn_tab$bf_01[enull < 1/10000] = "<1e-4"
+learn_tab$bf_10[ealt < 1/10000] = "<1e-4"
+
+learn_tab$bf_01[enull > 10000] = ">1e+4"
+learn_tab$bf_10[ealt > 10000 | ealt < 0] = ">1e+4"
+
+learn_tab$bf_01[1] = " - "
+learn_tab$bf_10[1] = " - "
+
+# bold rows with bf > 10 in favor of null or alt
+learn_tab[,c("mean", "lower", "upper", "pg0")] = format(round(learn_tab[,c("mean", "lower", "upper", "pg0")], 2), digits=2, nsmall = 2) # coerse to text so bolding doesnt mess up formatting
+
+# bold_rows = enull > 10 | ealt > 10 | ealt < 0
+# 
+# for (i in which(bold_rows)){
+#   rownames(wm_tab)[i] = paste0("\\textbf{", rownames(wm_tab)[i], "}")
+#   wm_tab[i,] = paste0("\\textbf{", wm_tab[i,], "}")
+# }
 
 rownames(learn_tab) = c("Intercept", "Distraction", "Interval", "Group",
                         "Distraction $\\times$ Interval", "Distraction $\\times$ Group",
                         "Interval $\\times$ Group",
                         "Distraction $\\times$ Interval $\\times$ Group")
 
-capt = "Results of generalized linear mixed effects model for final learning accuracy (note: coefficients on the log-odds scale). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
-print(xtable(learn_tab, caption = capt, label = 'tab:learntab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(learn_tab)),
-                                                                                                                                                                                                                                                                                               command = c(paste0("\\toprule \n",
-                                                                                                                                                                                                                                                                                                                  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n",
-                                                                                                                                                                                                                                                                                                                  " & Mean & Lower & Upper & Perc $>$ 0 \\\\\n",
-                                                                                                                                                                                                                                                                                                                  "\\midrule \n"),
-                                                                                                                                                                                                                                                                                                           paste0("\\bottomrule \\\\\ "))))
+capt = "Results of generalized linear mixed effects model for final learning accuracy. Posterior mean, 95\\% highest density interval, percentage of posterior samples greater than zero, and Bayes factors in favor of the null and alternative."
+print(xtable(learn_tab, caption = capt, label = 'tab:learntab', align = 'lcccccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(learn_tab)),command = c(paste0("\\toprule \n", " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n", " & Mean & Lower & Upper & Perc $>$ 0 & $B_{01}$ & $B_{10}$ \\\\\n", "\\midrule \n"), paste0("\\bottomrule \\\\\ "))))
 
 ```
 
@@ -414,20 +438,43 @@ sacc_tab = t(apply(sacc_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean
 
 sacc_tab = sacc_tab[sacc_fpars,]
 
+sacc_tab = as.data.frame(sacc_tab)
+
+# add bfs
+sacc_bfs = hypothesis(search_acc_brm1, paste0(rownames(fixef(search_acc_brm1)), " = 0"))
+
+enull = sacc_bfs$hypothesis$Evid.Ratio
+ealt = 1/sacc_bfs$hypothesis$Evid.Ratio
+
+sacc_tab$bf_01 = format(round(enull,2), scientific = F, digits = 2, trim=T)
+sacc_tab$bf_10 = format(round(ealt, 2), digits = 2, scientific = F, trim=T)
+
+sacc_tab$bf_01[enull < 1/10000] = "<1e-4"
+sacc_tab$bf_10[ealt < 1/10000] = "<1e-4"
+
+sacc_tab$bf_01[enull > 10000] = ">1e+4"
+sacc_tab$bf_10[ealt > 10000 | ealt < 0] = ">1e+4"
+
+sacc_tab$bf_01[1] = " - "
+sacc_tab$bf_10[1] = " - "
+
+sacc_tab[,c("mean", "lower", "upper", "pg0")] = format(round(sacc_tab[,c("mean", "lower", "upper", "pg0")], 2), digits=2, nsmall = 2)
+
 rownames(sacc_tab) = c("Intercept", "Interval", "Group", "Section",
                        "Interval $\\times$ Group",
                        "Interval $\\times$ Section",
                        "Group $\\times$ Section",
                        "Interval $\\times$ Group $\\times$ Section")
 
-capt = "Results of generalized linear mixed effects model for search accuracy (note: coefficients on the log-odds scale). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
-print(xtable(sacc_tab, caption = capt, label = 'tab:sacctab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(sacc_tab)), command = c(paste0("\\toprule \n",  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 \\\\\n", "\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
+capt = "Results of generalized linear mixed effects model for search accuracy. Posterior mean, 95\\% highest density interval, percentage of posterior samples greater than zero, and Bayes factors in favor of the null and alternative."
+print(xtable(sacc_tab, caption = capt, label = 'tab:sacctab', align = 'lcccccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(sacc_tab)), command = c(paste0("\\toprule \n",  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 & $B_{01}$ & $B_{10}$ \\\\\n", "\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
 
 ```
 
 ## Search reaction time
 
-Reaction time in the search task was analyzed with a linear mixed effects model with the same fixed and random effects as the analysis of accuracy above. As we are modeling reaction time in seconds we used a Cauchy(1, 1) prior on the intercept term (suggesting we expect average RT to be around 1 s, with a high degree of uncertainty) and Cauchy(0, 1) priors on the other fixed effects. For the standard deviation of random effects we used a half-Cauchy(0, 1) prior and the same LKJ(1) prior on the correlation matrix. Estimates of fixed effects are presented in Table \ref{tab:srttab}. 
+Reaction time in the search task was analyzed with a linear mixed effects model with the same fixed and random effects as the analysis of accuracy above. As we are modeling reaction time in seconds we used a Cauchy(1, 1) prior on the intercept term (suggesting we expect average RT to be around 1 s, with a high degree of uncertainty) and Cauchy(0, 1) priors on the other fixed effects. For the standard deviation of random effects we used a half-Cauchy(0, 1) prior and the same LKJ(1) prior on the correlation matrix. Estimates of fixed effects are presented in Table \ref{tab:srttab}.
+
 There is a main effect of interval, with faster response times in the 10 s condition relative to the 2 s condition. Older adults were also slower to respond than younger adults. There was also a main effect of section with faster responses for search alone versus search alongside the working memory task. Finally, interval and section interact as reaction times were shorter for search alone (`r compare_cols(search_fitp2[,1])`) relative to search + working memory (`r compare_cols(search_fitp2[,3])`) in the 2 s condition (difference: `r compare_cols(search_fitp2, 1, 3)`). In the 10 s condition reaction times did not significantly differ between search alone (`r compare_cols(search_fitp2[,2])`) and search with the working memory task (`r compare_cols(search_fitp2[,4])`; difference: `r compare_cols(search_fitp2,1,4)`). 
 
 ```{r srttab, results="asis"}
@@ -440,14 +487,36 @@ srt_tab = t(apply(srt_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x
 
 srt_tab = srt_tab[srt_fpars,]
 
+srt_tab = as.data.frame(srt_tab)
+
+# add bfs
+srt_bfs = hypothesis(search_rt_brm1, paste0(rownames(fixef(search_rt_brm1)), " = 0"))
+
+enull = srt_bfs$hypothesis$Evid.Ratio
+ealt = 1/srt_bfs$hypothesis$Evid.Ratio
+
+srt_tab$bf_01 = format(round(enull,2), scientific = F, digits = 2, trim=T)
+srt_tab$bf_10 = format(round(ealt, 2), digits = 2, scientific = F, trim=T)
+
+srt_tab$bf_01[enull < 1/10000] = "<1e-4"
+srt_tab$bf_10[ealt < 1/10000] = "<1e-4"
+
+srt_tab$bf_01[enull > 10000] = ">1e+4"
+srt_tab$bf_10[ealt > 10000 | ealt < 0] = ">1e+4"
+
+srt_tab$bf_01[1] = " - "
+srt_tab$bf_10[1] = " - "
+
+srt_tab[,c("mean", "lower", "upper", "pg0")] = format(round(srt_tab[,c("mean", "lower", "upper", "pg0")], 2), digits=2, nsmall = 2)
+
 rownames(srt_tab) = c("Intercept", "Interval", "Group", "Section",
                        "Interval $\\times$ Group",
                        "Interval $\\times$ Section",
                        "Group $\\times$ Section",
                        "Interval $\\times$ Group $\\times$ Section")
 
-capt = "Results of linear mixed effects model for search reaction time (in seconds). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
-print(xtable(srt_tab, caption = capt, label = 'tab:srttab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(srt_tab)), command = c(paste0("\\toprule \n",  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 \\\\\n", "\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
+capt = "Results of linear mixed effects model for search reaction time (in seconds). Posterior mean, 95\\% highest density interval, percentage of posterior samples greater than zero, and Bayes factors in favor of the null and alternative."
+print(xtable(srt_tab, caption = capt, label = 'tab:srttab', align = 'lcccccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(srt_tab)), command = c(paste0("\\toprule \n",  " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n"," & Mean & Lower & Upper & Perc $>$ 0 & $B_{01}$ & $B_{10}$ \\\\\n", "\\midrule \n"),paste0("\\bottomrule \\\\\ "))))
 
 ```
 
@@ -487,19 +556,172 @@ segments(x0 = fe1$Q2.5, y0 = fe2$Estimate,
 
 ```
 
+\clearpage
+
+# WM performance for new pairs by trial context
+
+@bartsch2020freeing found that presenting pairs that matched previously learned pairs during a working memory task led to better retention of new pairs (as assessed by recognition performance) relative to when all pairs were new, whereas including rearranged pairs led to poorer performance for new pairs. @bartsch2020freeing suggest that when participants are able to rely on reliable information from long-term memory they are able to allocate more resources to storing new information in working memory.
+
+Unfortunately our design had only two contexts---one where all pairs on that trial were new and the more frequent trial type with one match pair, two recombined pairs, and one new pair---in which new pairs appeared, which means we are unable to assess whether the same pattern of results holds for our cued recall task. Nevertheless, we assessed whether recall of new pairs was sensitive to the trial context. As younger participants only showed facilitation for pairs made up of previously learned elements, we may expect this group to better recall new pairs when the trial context allowed the use of LTM representations relative to when all pairs were new. For older adults, who exhibited proactive interference for recombined pairs and facilitation for match pairs, what to expect is less clear.
+
+```{r newplot, fig.cap="Accuracy in the working memory task for new pairs by condition and pair context. Error bars are within-subjects standard errors."}
+
+wm_dat$all_new = NA
+# figure out if all pairs were new or not
+for (i in unique(wm_dat$participant)){
+  for (j in 1:16){
+    tmp = with(wm_dat, participant == i & trial_no == j)
+    stopifnot(sum(tmp)==4)
+    if (all(wm_dat$item_type[tmp] == "new-new")){
+      wm_dat$all_new[tmp] = "yes"
+    } else{
+      wm_dat$all_new[tmp] = "no"
+    }
+  }
+}
+
+wm_dat_new = subset(wm_dat, item_type == "new-new")
+
+wm_dat_new$all_new = as.factor(wm_dat_new$all_new)
+
+wm_new_agg = ddply(wm_dat_new, c("participant", "interval", "distraction", "group", "all_new"), summarize,
+               N = length(recall_acc),
+               acc = mean(recall_acc),
+               mean_rt = mean(recall_rt),
+               ltm_int = mean(ltm_intru))
+
+wm_new_mse = summarySEwithin(data = wm_new_agg, measurevar = "acc", betweenvars = c("interval", "distraction", "group"), withinvars = "all_new")
+
+### plot 2: performance in the wm task by item type
+
+par(mfcol=c(2,2), mar=c(2,2,2,2), oma=c(0,2,0,0))
+
+for (i in intervals){
+  for (d in distractions){
+    plot(NA, xlim=c(.7,2.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+    #box()
+    labs = levels(wm_new_agg$all_new)
+    labs[labs=="no"] = "mixed"
+    labs[labs=="yes"] = "all new"
+
+    axis(1, at = 1:2, labels = labs, cex.axis=.8)
+    axis(2)
+    mtext(paste(i, c("with distraction", "no distraction")[(d=="no")+1]), adj = 0)
+    
+    for (g in groups){
+      l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(wm_new_agg, participant==x), points(jitter(as.numeric(all_new)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+    }
+    for (g in groups){
+      # error bars
+      with(subset(wm_new_mse, distraction==d & interval==i & group==g), errBars(means = acc, error = se, xpos = as.numeric(all_new)+jitts[g]))
+      # points
+      with(subset(wm_new_mse, distraction==d & interval==i & group==g), points(as.numeric(all_new)+jitts[g], acc, pch=16, col=cols[g], type='b'))
+    }
+  }
+}
+
+legend("bottomright", legend = groups, pch=16, col=cols, bty='n')
+
+#mtext("Working memory performance by item type", font=2, line=-1, adj=0, outer=T)
+
+mtext("Accuracy", 2, outer = T)
+
+```
+
+Taking recall accuracy for pairs that were new we categorized the trial context as either all new, where all the pairs on that particular trial were new-new, or mixed (see Figure \ref{fig:newplot}). We fit a generalized mixed effects model with the fixed effects of this trial context factor (all new coded 1, mixed coded -1), distraction, interval, and group (all coded as in the main analyses) as well as their interactions. In addition there was a random participant intercept and effect of trial context as well as a random item intercept. Posterior summaries are given in Table \ref{tab:wmnewtab}.
+
+```{r newtab, results="asis"}
+
+# hypothesis tests
+hy = c("all_new1 = 0", # 1
+       "all_new1:distraction1 = 0", 
+       "all_new1:interval1 = 0",
+       "all_new1:group1 = 0", 
+       "all_new1 + all_new1:group1 * 1 = 0", # 5
+       "all_new1 + all_new1:group1 * -1 = 0", 
+       "all_new1:distraction1:interval1 = 0",
+       "all_new1:distraction1:group1  = 0", 
+       "all_new1:interval1:group1 = 0",
+       "all_new1:distraction1:interval1:group1 = 0") # 10
+
+wmnew_hy = hypothesis(wmnew_brm2, hy)
+
+# wmnew_hy$hypothesis$Evid.Ratio
+
+# table
+
+wmnew_fpars = grep(pattern = "b_", x = parnames(wmnew_brm2), value = T)
+
+wmnew_samps = posterior_samples(wmnew_brm2, pars=wmnew_fpars)
+
+wmnew_tab = t(apply(wmnew_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x>0)*100)))
+
+wmnew_tab = wmnew_tab[wmnew_fpars,]
+
+wmnew_tab = as.data.frame(wmnew_tab)
+
+# add bfs
+wmnew_bfs = hypothesis(wmnew_brm2, paste0(rownames(fixef(wmnew_brm2)), " = 0"))
+
+enull = wmnew_bfs$hypothesis$Evid.Ratio
+ealt = 1/wmnew_bfs$hypothesis$Evid.Ratio
+
+wmnew_tab$bf_01 = format(round(enull,2), scientific = F, digits = 2, trim=T)
+wmnew_tab$bf_10 = format(round(ealt, 2), digits = 2, scientific = F, trim=T)
+
+wmnew_tab$bf_01[enull < 1/10000] = "<1e-4"
+wmnew_tab$bf_10[ealt < 1/10000] = "<1e-4"
+
+wmnew_tab$bf_01[enull > 10000] = ">1e+4"
+wmnew_tab$bf_10[ealt > 10000 | ealt < 0] = ">1e+4"
+
+wmnew_tab$bf_01[1] = " - "
+wmnew_tab$bf_10[1] = " - "
+
+wmnew_tab[,c("mean", "lower", "upper", "pg0")] = format(round(wmnew_tab[,c("mean", "lower", "upper", "pg0")], 2), digits=2, nsmall = 2)
+
+rownames(wmnew_tab) = c("Intercept", "All New", "Distraction", 
+                        "Interval", "Group",
+                        "All New $\\times$ Distraction",
+                        "All New $\\times$ Interval",
+                        "Distraction $\\times$ Interval", 
+                        "All New $\\times$ Group",
+                        "Distraction $\\times$ Group",
+                        "Interval $\\times$ Group",
+                        "All New $\\times$ Distraction $\\times$ Interval",
+                        "All New $\\times$ Distraction $\\times$ Group",
+                        "All New $\\times$ Interval $\\times$ Group",
+                        "Distraction $\\times$ Interval $\\times$ Group",
+                        "All New $\\times$ Distraction $\\times$ Interval $\\times$ Group")
+
+capt = "Results of generalized linear mixed effects model on accuracy for new-new pairs in the working memory task taking into account trial context. Posterior mean, 95\\% highest density interval, percentage of posterior samples greater than zero, and Bayes factors in favor of the null and alternative."
+print(xtable(wmnew_tab, caption = capt, label = 'tab:wmnewtab', align = 'lcccccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = force, floating=TRUE, table.placement = 't', comment=F, scalebox = .9, add.to.row = list(pos = list(-1, nrow(wmnew_tab)), command = c(paste0("\\toprule \n", " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n", " & Mean & Lower & Upper & Perc $>$ 0 & $B_{01}$ & $B_{10}$ \\\\\n", "\\midrule \n"), paste0("\\bottomrule \\\\\ "))))
+
+```
+
+The trial context influences accuracy for new pairs, with higher accuracy on mixed trials relative to all new ($B_{10} =$ `r round(1/wmnew_hy$hypothesis$Evid.Ratio[1])`). There is an interaction between group and trial context ($B_{10} =$ `r round(1/wmnew_hy$hypothesis$Evid.Ratio[4], 2)`). As shown in Figure \ref{fig:newplot}, the difference in accuracy between the mixed and all new trial types is more pronounced for the younger group. This is supported by Bayes factor contrasts that provide strong evidence for an effect in younger adults ($B_{10} =$ `r format(1/wmnew_hy$hypothesis$Evid.Ratio[6], digits=3)`) but evidence in favor of the null for the older group ($B_{01} =$ `r round(wmnew_hy$hypothesis$Evid.Ratio[5], 2)`). 
+
+The 95% HDI for the interaction between trial context and interval excludes zero, however the Bayes factor does not provide compelling evidence for or against the null ($B_{01} =$ `r round(wmnew_hy$hypothesis$Evid.Ratio[3], 2)`). For the remaining interactions the null was favored by over 9-to-1.
+
+\clearpage
+
 # Relationship between learning and WM performance
 
 To assess the relationship between participants' final level of learning and performance for different item types in the working memory task we estimated a multivariate model with `brms`. In the main analyses, separate generalized mixed effects model were fit to accuracy from the two phases of the experiment with separate random participant effects. In the multivariate model these random participant effects are allowed to correlate across response variables. This involves no aggregation of the data; the data are modeled as they are (zeros and ones) and the correlations are estimated at the 'latent' level [see @rouder2019psychometrics].
 
 For the learning outcome the model was simplified to include a fixed effect of age group and a random participant intercept to capture between-participant variability in performance during part 1 of the experiment. The model for the working memory data included fixed effects of item type (coded as in the main analysis), age group, and their interaction plus a random intercept and random effect for item type. The random item type effect captures individual differences in proactive facilitation (through the contrast of match with new) and proactive interference (contrasts of old-new and mismatch with new). 
 
-```{r cor, fig.height=7, fig.cap="Correlations between final learning and WM performance estimated via a multivariate mixed effects model. Learn = final learning intercept, WM overall = Intercept, WM PF = match vs. other contrast, WM PI = new-new vs. mis-match/old-new contrast, WM M vs. O = mis-match vs. old-new contrast"}
+```{r cor, fig.height=7, fig.cap="Correlations between final learning and WM performance estimated via a multivariate mixed effects model. Bayes factors for the null hypothesis are given next to the associated violin plot ($B_{01} < 1$ provides support for the alternative) Learn = final learning intercept, WM overall = Intercept, WM PF = match vs. other contrast, WM PI = new-new vs. mis-match/old-new contrast, WM M vs. O = mis-match vs. old-new contrast"}
 
 multi_m1 = readRDS("analysis/rds-files/multi_m1.rds")
 
 cor_samps = posterior_samples(multi_m1, pars = "cor")
 
+cor_samps=cor_samps[,-which(colnames(cor_samps) == "prior_cor_participant")]
+
 cor_names = colnames(cor_samps)
+
+cor_bfs = hypothesis(multi_m1, paste0(gsub("cor_", "", cor_names), " = 0"), class = "cor")
 
 cor_names = gsub(pattern = "cor_", "Cor(", cor_names)
 cor_names = gsub(pattern = "participant__", "", cor_names)
@@ -516,17 +738,21 @@ cor_names = paste0(cor_names, ")")
 colnames(cor_samps) = cor_names
 
 par(mar=c(5, 14, 4, 2)+.1)
-plot(NA, xlim=c(-1, 1), ylim=c(0.5,ncol(cor_samps)+.5), xlab="Correlation", ylab = "", axes=F)
+plot(NA, xlim=c(-1, 1.3), ylim=c(0.5,ncol(cor_samps)+.8), xlab="Correlation", ylab = "", axes=F)
 box()
-axis(1)
+axis(1, at = seq(-1,1,.5))
 axis(2, at = 1:ncol(cor_samps), 
      labels = colnames(cor_samps), las=1)
 l=lapply(1:ncol(cor_samps), FUN = function(x) vioplot2(cor_samps[,x], at = x, col = "lightblue"))
 abline(v = 0, lty=2, col="black")
 
+text(x=1.05, y = 1:ncol(cor_samps), format(round(cor_bfs$hypothesis$Evid.Ratio,2), digits = 2, nsmall = 2), adj = 0)
+
+text(x = 1.05, y = ncol(cor_samps)+.7, bquote(B["01"]), adj=0)
+
 ```
 
-Figure \ref{fig:cor} presents estimates of the correlations and their uncertainty. The only correlations that do not include zero in their highest density intervals are between overall performance in the working memory task (WM Overall) and the final level of learning ($r$ = `r compare_cols(preds = cor_samps[,8])`) as well as the correlation between proactive facilitation for match items in the working memory task (WM PF = match vs. other) with level of learning ($r$ = `r compare_cols(preds = cor_samps[,7])`), with higher levels of learning associated with greater facilitation. Estimates of the remaining correlations are associated with a high degree of uncertainty. However, in the case of the correlations between proactive interference (WM PI) and level of learning and between overall WM performance with estimates of proactive facilitation or interference (see bottom two rows in Figure \ref{fig:cor}) we can rule out very strong relationships between the other random effects.
+Figure \ref{fig:cor} presents estimates of the correlations and their uncertainty. The only correlations that do not include zero in their highest density intervals are between overall performance in the working memory task (WM Overall) and the final level of learning ($r$ = `r compare_cols(preds = cor_samps[,7])`; $B_{10} > 10000$) as well as the correlation between proactive facilitation for match items in the working memory task (WM PF = match vs. other) with level of learning ($r$ = `r compare_cols(preds = cor_samps[,8])`; $B_{10} =$ `r round(1/cor_bfs$hypothesis$Evid.Ratio[8],2)`), with higher levels of learning associated with greater facilitation. Estimates of the remaining correlations are associated with a high degree of uncertainty and Bayes factors that do not strongly favor the null or alternative (see Figure \ref{fig:cor}). However, in the case of the correlations between proactive interference (WM PI) and level of learning and between overall WM performance with estimates of proactive facilitation or interference (see bottom two rows in Figure \ref{fig:cor}) we can rule out very strong relationships between the other random effects.
 
 \clearpage
 
@@ -809,3 +1035,6 @@ mtext("Difference from new-new in p(response) as a proportion of errors", 1, out
 \clearpage
 
 # References
+
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}

@@ -5,6 +5,7 @@ analysis/rds-files/
 *.tex
 *.aux
 *.log
+*.sty
 .Rhistory
 .~lock*
 sub1-pbr/
@@ -12,3 +13,5 @@ pro_files/
 writing-notes.txt
 comments/
 pro-sup_files/
+paper/pro-diff.out
+paper/pro-diff.pdf

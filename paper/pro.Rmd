@@ -6,7 +6,7 @@ author:
   - name: "Stephen Rhodes"
     address: "3560 Bathurst Street, Toronto ON, M6A 2E1"
     affiliation: "1"
-    email: "srhodes@research.baycrest.org"
+    email: "steverho89@gmail.com"
     corresponding: yes
   - name: "Bradley R. Buchsbaum"
     affiliation: "1,2"
@@ -77,7 +77,7 @@ library(knitr)
 library(rstan)
 # library(bayesplot)
 
-#r_refs("pro.bib")
+r_refs("pro.bib")
 
 options(mc.cores = parallel::detectCores())
 
@@ -193,58 +193,33 @@ print_row = function(x, row=1){
 ```
 
 Performance on memory tasks is typically facilitated when participants have previously encountered, or have prior experience, with the to-be-remembered information [e.g., @ericsson1995long]. However, prior memory can also impede the formation of new memories, especially when there is conflict between the old and new information. A clear example of this comes from paired associates learning [e.g., @melton1940influence; @postman1973critical], where the prior learning of so-called AB pairs[^nom] impedes the subsequent learning of AC pairs (relative to pairs of previously unseen items, sometimes referred to as DE pairs). This dampening of new acquisition by previously learned, but no longer relevant, information is referred to as *proactive interference* (or proactive inhibition). The ability to effectively manage proactive interference in various tasks is an important source of individual [@bunting2006proactive; @hasher2007] and group variation [@emery2008age; @lustig2001working].
-<!-- different word for "impedance" or "dampening"-->
 
 [^nom]: Where the first letter refers to a stimulus or cue and the second refers to an associated response.
 
-While proactive interference is a factor in multiple tasks, there are instances in which no interference occurs. In particular it is possible that working memory---the small amount of information held in mind over brief time-periods---is immune to proactive interference from the larger body of information stored in long-term memory [@cowan2005capacity; @lin2012proactive; @oberauer2017; although see @beaudry2014focus]. As working memory clearly can benefit from prior knowledge [e.g., @brady2016working; @ericsson1995long; @hulme1991memory], the contrast between the presence of facilitation and the absence of disruption suggests the need of a mechanism to account for these findings. One suggestion is the existence of a gating system that protects information in working memory from conflicting information but allows information from long-term memory to influence performance when it is beneficial [@oberauer2009design; @oberauer2017]. <!--We return to the need for such a gating mechanism in the Discussion.-->
+While proactive interference is a factor in multiple tasks, there are instances in which no interference occurs. In particular it is possible that working memory---the small amount of information held in mind over brief time-periods---is immune to proactive interference from the larger body of information stored in long-term memory [@cowan2005capacity; @lin2012proactive; @oberauer2017; although see @beaudry2014focus]. As working memory clearly can benefit from prior knowledge [e.g., @brady2016working; @ericsson1995long; @hulme1991memory], the contrast between the presence of facilitation and the absence of disruption suggests the need of a mechanism to account for these findings. One suggestion is the existence of a gating system that protects information in working memory from conflicting information but allows information from long-term memory to influence performance when it is beneficial [@oberauer2009design; @oberauer2017].
 
 @oberauer2017 recently addressed this issue directly by looking for both proactive facilitation and interference from previously learned associations in a visual working memory task. In their first three experiments, younger adult participants initially learned the association between object silhouettes and colors sampled from a color wheel. Then they were given a visual working memory task in which three object-color pairings were presented and then, following a short delay, participants had to select the color associated with each object by clicking on a color wheel. @oberauer2017 found that presenting pairs that matched those initially learned facilitated working memory performance (i.e., led to less recall error) relative to a new-object baseline, which were objects that had not been encountered during learning. However, when a previously learned object was paired with a new randomly selected color, presenting a possible conflict between long-term and working memory, recall error did not differ from the new object baseline. They concluded that, at least for this particular task, there was proactive facilitation but no proactive interference from long-term memory to working memory.
 
-@oberauer2017 acknowledge that their findings may be limited to the particular task they chose, which was fine-grained color recall cued by object. Other studies have addressed similar questions regarding the interaction of long-term and working memory with different materials and tasks [@bartsch2020freeing; @hoskin2018refresh; @mizrak2020working], and findings have been mixed. Using a Hebb repetition paradigm with letters and words, @mizrak2020working found evidence of proactive facilitation and no evidence of interference. On the other hand, two studies using cued recognition have found evidence of interference from previously learned associations [word pairs in @bartsch2020freeing; and image-word pairs in @hoskin2018refresh]. @bartsch2020freeing suggest that recognition may lead to greater competition at test relative to cued recall, in particular when the previously learned associate is presented as a lure, which may explain differences in findings. To our knowledge, the generalizability of Oberauer et al.'s (2017) specific findings to other materials has not been addressed. Thus, one main aim of the present work was to examine whether the finding of proactive facilitation with no proactive interference in younger participants generalizes to other stimulus materials (pairs of images and words). Our second main aim was to assess whether younger and older participants differ in their susceptibility to interference from previously learned information in a working memory task. 
+@oberauer2017 acknowledge that their findings may be limited to the particular task they chose, which was fine-grained color recall cued by object. Other studies have addressed similar questions regarding the interaction of long-term and working memory with different materials and tasks [@bartsch2020freeing; @hoskin2018refresh; @mizrak2020working], and findings have been mixed. Using a Hebb repetition paradigm with letters and words, @mizrak2020working found evidence of proactive facilitation and no evidence of interference. On the other hand, two studies using cued recognition have found evidence of interference from previously learned associations [word pairs in @bartsch2020freeing; and image-word pairs in @hoskin2018refresh]. @bartsch2020freeing suggest that recognition may lead to greater competition at test relative to cued recall, in particular when the previously learned associate is presented as a lure, which may explain differences in findings. To our knowledge, the generalizability of Oberauer et al.'s (2017) specific findings to other materials has not been addressed. Thus, one main aim of the present work was to examine whether the finding of proactive facilitation with no proactive interference in younger participants generalizes to other stimulus materials, in this case pairs of images and words. As noted above, @hoskin2018refresh found some evidence of proactive interference with image-word pairs, which could suggest that Oberauer et al.'s specific findings may not generalize to more meaningful material. The use of categorically distinct stimuli, in particular the to-be-recalled words, also allowed us to implement an adaptive learning phase to get participants to a high level of learning prior to the working memory task. Further, as we outline in the next section, the use of continuously varying colors and the way in which they were selected could potentially have masked interference effects in Oberauer et al. (2017). We reduce this possible source of bias by selecting distinct words (see Method section).
 
-<!-- 
-POSSIBLE REVISION: PARAGRAPH HERE ON WHY IMAGE-WORD PAIRS
-
-though tbh do we have a strong rationale other than these are distinct stimuli 
-that we could mark recall of as correct/incorrect, instead of relying on mixture model/ recall error (and sampling of colors that could be near the learned one)
--->
-
-<!--## Related work on conflict between long-term and working memory-->
-
-<!--
-@oberauer2017 acknowledge that their findings are limited to the particular task they chose, which was fine-grained color recall cued by object. Addressing a similar set of research questions, @mizrak2020working used the Hebb repetition paradigm with serial recall of verbal material (consonants or words). They found the standard Hebb repetition effect, where recall is superior for lists that are repeated throughout the experiment relative to filler lists that do not repeat. However, they also included 'Hebb-interference' lists in which only part of the list was repeated and the rest was new. Despite the possibility of conflict with the learned Hebb list, recall of the Hebb-interference lists was no worse than recall of the filler lists. This provides evidence for proactive facilitation (in the form of the Hebb effect) in the absence of proactive interference with verbal material. 
-
-In an experiment more closely modeled on @oberauer2017, @bartsch2020freeing (Experiment 3) had participants learn 24 pairs of words by viewing them sequentially. Then, in a working memory task, participants studied sequences of word pairs before being tested for each pair with a cue word and a four-choice recognition decision, where they had to select the correct associate. They found poorer working memory performance for word pairs made of rearranged pairs from the initial learning phase as well as for pairs made of one learned word with a new associate relative to new baseline pairs. These findings provide evidence of proactive interference with verbal pairs but the authors note that comparison to the other studies mentioned here is complicated by the different tasks used. In particular in their task the previous associate of a particular cue word was presented as one of the four options at test, which may have produced competition with the contents of working memory. In other words, the conflict may not have occurred with a different testing format, such as cued-recall. 
-
-Finally, @hoskin2018refresh (Experiment 1) paired groups of 12 words with a context image during an initial learning task. Then they had a working memory task in which four words, all of which had been associated with the same image context during learning, had to be remembered over an 18 s interval prior to free recall. Participants were found to incorrectly recall words that had been studied with the same context image at a higher rate than expected by chance. While these findings are consistent with use of previously learned information in a working memory task, they are not necessarily indicative of proactive interference per se. For instance, @oberauer2017 found evidence of mis-binding errors, where the previously learned object-color association was recalled in the working memory task. However, overall recall error was not larger for these recombined pairs relative to the new baseline. Thus, it is possible that participants in Hoskin et al. recalled previously learned associations when working memory storage had failed but this prior knowledge did not cause storage to fail at a higher rate (which would be indicative of proactive interference). The inclusion of new pairs, for which there is no experimentally manipulated prior knowledge, is crucial for assessing interference. In sum, while there are studies addressing similar issues with different stimulus materials, the generalizability of Oberauer et al.'s (2017) specific findings to other types of pairs has not been addressed (to our knowledge).
--->
-
-<!--
-## Age-differences in proactive interference
-
-Turning to age differences, there are many instances where older adults exhibit greater effects of proactive interference relative to younger adults. -->
-
-The are numerous reasons to expect that older adults will exhibit proactive interference from long-term to working memory, even if younger adults do not. In studies using the AB/AC paired associates paradigm, older participants show greater levels of interference for AC pairs relative to younger participants [e.g., @burton2019associative; @ebert2009proactive; @wahlheim2014proactive; @winocur1983paired]. Further, in working memory span tasks, older participants benefit, often much more so than younger adults, from manipulations intended to reduce conflict between stimuli currently relevant on a particular trial from previously encountered trials. Examples include presenting list lengths in descending, rather than ascending, order [@lustig2001working; @may1999role; @rowe2008age], separating lists with a break [@lustig2001working; @may1999role], and changing the semantic category of to-be-remembered words between trials to reduce possible conflict [@emery2008age; @hasher2002age; see also, @rowe2010interference]. 
+Our second main aim was to assess whether younger and older participants differ in their susceptibility to interference from previously learned information in a working memory task. The are numerous reasons to expect that older adults will exhibit proactive interference from learned information in a working memory task, even if younger adults do not. In studies using the AB/AC paired associates paradigm, older participants show greater levels of interference for AC pairs relative to younger participants [e.g., @burton2019associative; @ebert2009proactive; @wahlheim2014proactive; @winocur1983paired]. Further, in working memory span tasks, older participants benefit, often much more so than younger adults, from manipulations intended to reduce conflict between stimuli currently relevant on a particular trial from previously encountered trials. Examples include presenting list lengths in descending, rather than ascending, order [@lustig2001working; @may1999role; @rowe2008age], separating lists with a break [@lustig2001working; @may1999role], and changing the semantic category of to-be-remembered words between trials to reduce possible conflict [@emery2008age; @hasher2002age; see also, @rowe2010interference]. 
 
 <!--Other evidence comes from working memory tasks assessing recognition in which older adults are more likely to erroneously endorse lures seen on previous trials [e.g., @jonides2000age; @samrani2017age]. -->
 
-These findings suggest that older adults are more susceptible to proactive interference but, crucially, they do not bear on the question of interference between long-term and working memory. Specifically, the instances of proactive interference in working memory tasks concern interference between trials that are temporally close in the experiment. In these cases the interference may be occurring entirely within working memory as information from previous trials has not been sufficiently removed or inhibited from active maintenance. Previous work has demonstrated that older adults are less efficient than younger adults at inhibiting no longer relevant information [@hasher2007; @lustig2001working; @oberauer2001removing; @oberauer2005control; also, see @weeks2020holding for recent fMRI evidence of this], but whether or not previously learned information is more likely to interfere with older adults' performance on a working memory task is, arguably, a separate issue. @oberauer2017 also make this point about the wider literature in that many instances of supposed interference between long-term and working memory could instead be attributable to insufficient removal of information from working memory between trials. This highlights the strength of the approach adopted here of introducing arbitrary associations to-be-learned at the beginning of the experiment and then using those associations in a subsequent working memory task in ways that could either facilitate or interfere with performance.
+These findings suggest that older adults are more susceptible to proactive interference but, crucially, they do not bear on the question of interference between long-term and working memory. Specifically, the instances of proactive interference in working memory tasks concern interference between trials that are temporally close in the experiment. In these cases the interference may be occurring entirely within working memory as information from previous trials has not been sufficiently removed or inhibited from active maintenance. Previous work has demonstrated that older adults are less efficient than younger adults at inhibiting no longer relevant information [@hasher2007; @lustig2001working; @oberauer2001removing; @oberauer2005control; also, see @weeks2020holding for recent fMRI evidence of this], but whether or not previously learned information is more likely to interfere with older adults' performance on a working memory task is, arguably, a separate issue. @oberauer2017 also make this point about the wider literature where many instances of supposed interference from long-term memory in working memory tasks instead be attributable to insufficient removal of information from working memory between trials. This highlights the strength of the approach adopted here of introducing arbitrary associations to-be-learned at the beginning of the experiment and then using those associations in a subsequent working memory task in ways that could either facilitate or interfere with performance.
 
 <!--
 the above paragraph is a re-write of the one below:
 These findings lead one to expect that older adults may exhibit proactive interference in a working memory task from previously learned information even in a scenario where younger adults are immune. However, many of the instances of proactive interference in working memory tasks highlighted earlier could also be accounted for by assuming that older adults are less able to inhibit no longer relevant information relative to younger adults [@hasher2007; @lustig2001working; @oberauer2001removing; @oberauer2005control; also, see @weeks2020holding for recent fMRI evidence of this]. In agreement with this view, @oberauer2017 point out that many of the instances of working memory proactive interference in the broader literature could be attributable to insufficient removal between trials. No longer relevant information remaining active and competing with relevant information on a particular trial would reflect a case of proactive interference *within* working memory but not necessarily between long-term and working memory, which is the central question addressed here.  
 -->
 
-<!-- REVISION: HELP R UNDERSTAND DIFFERENCE BETWEEN WITHIN WM AND BETWEEN LTM AND WM-->
-
 ## The present experiment
 
-Here we address the generalizability of Oberauer et al's (2017) findings to new materials (image-word pairs) and to older adults in addition to younger adults. Participants first learned 30 pairs of image-word pairs via repeated study and test. Then they completed a working memory task with new pairs that were not previously studied, previously studied pairs for which we would expect facilitation relative to new pairs, and two types of recombined pairs that use previously studied elements but in different combinations. For one kind of pair the cue image was previously learned but paired with a new word and for the other kind the image and word were taken from different learned pairs. These different kinds of recombined pairs are possible in our design whereas in @oberauer2017 the 'new' colors for their mis-match pairs were sampled randomly from the color wheel and could overlap with the colors of other learned objects.[^crit]
+Here we address the generalizability of Oberauer et al's (2017) findings to new materials (image-word pairs) and to older adults in addition to younger adults. Participants first learned 30 pairs of image-word pairs via repeated study and test. Then they completed a working memory task with new pairs that were not previously studied, previously studied pairs for which we would expect facilitation relative to new pairs, and two types of recombined pairs that use previously studied elements but in different combinations. For one kind of pair the cue image was previously learned but paired with a new word and for the other kind the image and word were taken from different learned pairs. These different kinds of recombined pairs are possible in our design whereas in @oberauer2017 the 'new' colors for their mis-match pairs were sampled randomly from the color wheel and could overlap with the colors of other learned objects. The new colors sampled for mis-match pairs could also be very similar to the original learned color. In the AB/AC paradigm it is well known that similarity between the B (old) and C (new) responses can produce facilitation, rather than interference [e.g., @barnes1959fate; @morgan1950proactive; @postman1964proactive; @postman1973critical]. Thus, similarity between the 'new' and learned color may have benefited performance on some trials, potentially masking interference effects in the Oberauer et al. experiments. The stimuli used in the present work allowed more control over the similarity of learned and new associates.
 
-[^crit]: The new colors sampled for mis-match pairs could also be very similar to the original learned color. In the AB/AC paradigm it is well known that similarity between the B and C responses can produce facilitation [e.g., @barnes1959fate; @morgan1950proactive; @postman1964proactive; @postman1973critical]. Thus, similarity between the 'new' and learned color may have benefited performance on some trials, potentially masking interference effects.
+We included two manipulations that could possibly modulate proactive effects from long-term memory in the working memory task. The interval separating study and test was either 2 or 10 s to vary the demand for active maintenance of the pairs. Further, the interval was either free of distraction or contained a distracting visual search task [from @johnson2008role]. Distraction is argued to displace information from active maintenance in working memory, leading to a demanding search of long-term (or secondary) memory at test [@rose2014short; @unsworth2007nature]. If this is the case, we would expect competition between the recombined pairs studied during the working memory task and the originally learned pairs. We may also expect the presence of a distracting task to interact with the duration of the retention interval as a longer interval included more visual search problems for participants to respond to, increasing the opportunity for displacement from working memory [@BarrouilletEtAl2007; @OberauerEtAl2012]. Finally, as previous work has demonstrated that older adults' retention of information in working memory is more susceptible to the effects of distracting processing tasks [see @jaroslawska2019adult for a meta-analysis], we expect distraction and interval to interact with age group, such that group differences will be larger under distraction and particularly for pairs where there is a conflict with previously learned information.
 
-We included two manipulations that could possibly modulate proactive effects from long-term memory in the working memory task. The interval separating study and test was either 2 or 10 s to vary the demand for active maintenance of the pairs. Further, the interval was either free of distraction or contained a distracting search task [from @johnson2008role]. Distraction is argued to displace information from active maintenance in working memory, leading to a demanding search of long-term (or secondary) memory at test [@rose2014short; @unsworth2007nature]. If this is the case, we would expect competition between the recombined pairs studied during the working memory task and the originally learned pairs. We may also expect the presence of a distracting task to interact with the duration of the retention interval as a longer interval included more search problems for participants to respond to, increasing the opportunity for displacement from working memory [@BarrouilletEtAl2007; @OberauerEtAl2012].
+The manipulation of distraction was primarily included to see if we could induce or modulate proactive interference from learned information in a working memory task. If proactive interference is only seen under conditions of distraction this would support the idea that prior learning only negatively affects task performance when relevant information has been displaced from active maintenance in working memory or degraded by distraction.
 
 # Method
 
@@ -269,7 +244,7 @@ print(xtable(info_tab, caption = capt, label = 'tab:info_tab', align = 'lccccccc
 
 In both sections of the experiment participants were asked to remember pairs of images and words. The English lexicon project data base [http://elexicon.wustl.edu/; @balota2007english] was queried for high frequency [> 20 per million in SUBTLEX norms; @brysbaert2009moving] nouns of 4--6 letters. For images we used the MultiPic database [@dunabeitia2017multipic], which contains 750 drawings with naming norms. Some words and images were excluded by hand for various reasons (e.g., words that could be names of people, plurals of other words, images depicting parts of the body, line drawings of shapes).
 
-To select the final set of stimuli, such that pairs of images and words are as unrelated as possible, we used the most commonly given name for each image in the MultiPic database and calculated cosine similarity, via latent semantic analysis [@martin2007mathematical], with each word from the English lexicon query. This was done using the `LSAfun` package [@lsafun] for `R` and a semantic space based on the TASA corpus (see http://lsa.colorado.edu/spaces.html), which includes 37,651 documents up to a college reading level. Pairwise cosine similarity essentially summarizes how frequently words appear together within a corpus and ranges from -1 to 1 (0 = unrelated). We dropped any items with a pairwise cosine similarity greater than 0.5 and selected 74 words and 64 images to construct lists for the learning and working memory tasks. Six different lists of image-word pairs for both sections were generated and one was selected at random for each participant. An additional 17 words and 17 images were selected to make practice lists.
+To select the final set of stimuli, such that pairs of images and words are as unrelated as possible, we used the most commonly given name for each image in the MultiPic database and calculated cosine similarity, via latent semantic analysis [@martin2007mathematical], with each word from the English lexicon query. This was done using the `LSAfun` package [@lsafun] for `R` and a semantic space based on the TASA corpus (see http://lsa.colorado.edu/spaces.html), which includes 37,651 documents up to a college reading level. Pairwise cosine similarity essentially summarizes how frequently words appear together within a corpus and ranges from -1 to 1 (0 = unrelated). We dropped any items with a pairwise cosine similarity, within and between the image and word categories, greater than 0.5 and selected 74 words and 64 images to construct lists for the learning and working memory tasks. It was particularly important for the words to be dissimilar (mean cosine similarity = .009, $SD$ = .06) as previous work has found proactive facilitation between AB and AC pairs when B and C are related [e.g., @barnes1959fate; @morgan1950proactive; @postman1964proactive; @postman1973critical]. Six different lists of image-word pairs for both sections were generated and one was selected at random for each participant. An additional 17 words and 17 images were selected to make practice lists.
 
 ## Procedure
 
@@ -290,13 +265,13 @@ During the initial phase of learning participants looped through all 30 pairs an
 
 ### Working Memory
 
-There were 16 working memory trials in which participants were presented with 4 image-word pairs followed by a delay and then by cued-recall of the 4 pairs in a random order (Figure \ref{fig:method}C). For 10 of the trials each pair was a different type (presented in random order). *Match* pairs were identical to a previously learned pair, *mis-match* pairs were a recombination of a previously learned image and word, *old-new* pairs presented a learned image with a new word, and for *new-new* pairs both image and word had not previously been seen (see Figure \ref{fig:method} for examples). For 6 of the trials all 4 pairs were new-new so that the trials were not entirely predictable. Consequently, there were 10 observations for match, old-new, and mis-match pairs and 34 observations of new-new (10 + 6*4). Each pair was presented for 2 s with a 0.5 s inter-stimulus interval. Following the retention interval, memory for the 4 pairs was probed by presenting each cue image in a random order. Participants had up to 15 s to type the recalled word and no feedback was given in this part. Before the 16 experimental trials, participants were given 3 practice trials with all new-new pairs. 
+There were 16 working memory trials in which participants were presented with 4 image-word pairs followed by a delay and then by cued-recall of the 4 pairs in a random order (Figure \ref{fig:method}C). For 10 of the trials each pair was a different type (presented in random order). *Match* pairs were identical to a previously learned pair, *mis-match* pairs were a recombination of a previously learned image and word, *old-new* pairs presented a learned image with a new word, and for *new-new* pairs both image and word had not previously been seen (see Figure \ref{fig:method} for examples). For 6 of the trials all 4 pairs were new-new so that the trials were not entirely predictable. Consequently, there were 10 observations for match, old-new, and mis-match pairs and 34 observations of new-new (10 + 6*4) per participant. Each pair was presented for 2 s with a 0.5 s inter-stimulus interval. Following the retention interval, memory for the 4 pairs was probed by presenting each cue image in a random order. Participants had up to 15 s to type the recalled word and no feedback was given in this part. Before the 16 experimental trials, participants were given 3 practice trials with all new-new pairs. 
 
 For the working memory task there are 4 conditions that differ in the length of the retention interval between study and test (2 or 10 s) and in the presence or absence of a distracting task. This task was a search task based on that used in @johnson2008role. In this task participants were presented with 8 shapes open on one side (see Figure \ref{fig:method}C). The shapes were located in pairs in the 4 quadrants of the screen with some random jittering of the $y$ position of each shape. On each trial of this task only one of the shapes is open on the left or right and participants' task was to identify this item and indicate the open side via key press ('1' for left and '0' for right). The shapes remained on screen for 2 s and did not disappear following response. In the 2 s interval condition there was one search problem to respond to whereas in the 10 s condition there were four (2 s presentation and 500 ms ISI). Participants in the distraction conditions completed 20 trials (2 s presentation and 500 ms ISI) of the search task by itself before practicing the working memory task (with the search task in the interval). 
 
 ## Analysis
 
-Cued recall accuracy for the final test of learning and for the working memory task was analyzed via generalized (logistic) linear mixed effects models estimated with the `brms` package [@R-brms_a; @R-brms_b] for `R`.[^packages] This package serves as an interface to the MCMC samplers for Bayesian estimation in `stan` [@carpenter2017stan]. For priors on fixed (population-level) effects we used weakly informative Cauchy(0, 2.5) priors [@gelman2008weakly]. For random (individual-level) effects we used a half-Cauchy(0, 2.5) prior on standard deviations [@gelman2006prior] and an LKJ(1) prior [@lewandowski2009generating] on correlation matrices (i.e., a uniform prior). Posterior samples were obtained from 4 independent chains each run for 2000 samples with the first 1000 used as warm-up and the second half retained for a total of 4000 posterior samples. The $\hat{R}$ statistic [@vehtari2020rank] was below 1.05 for all parameters, suggesting convergence on a stable posterior distribution.
+Cued recall accuracy for the final test of learning and for the working memory task was analyzed via generalized (logistic) linear mixed effects models estimated with the `brms` package [@R-brms_a; @R-brms_b] for `R`.[^packages] This package serves as an interface to the MCMC samplers for Bayesian estimation in `stan` [@carpenter2017stan]. The prior on the population intercept term was a weakly informative Cauchy(0, 2.5) prior [@gelman2008weakly]. For the fixed effects, as we wanted to calculate Bayes factors (discussed further on) we used a slightly more informative Cauchy(0, 1) prior, which is still fairly broad on the logit scale. For random (individual-level) effects we used a half-Cauchy(0, 2.5) prior on standard deviations [@gelman2006prior] and an LKJ(1) prior [@lewandowski2009generating] on correlation matrices (i.e., a uniform prior). Posterior samples were obtained from 4 independent chains each run for 3500 samples with the first 1000 used as warm-up and the rest retained for a total of 10000 posterior samples. The $\hat{R}$ statistic [@vehtari2020rank] was below 1.05 for all parameters, suggesting convergence on a stable posterior distribution.
 
 [^packages]: `r cite_r(file = "pro.bib")`
 
@@ -304,11 +279,7 @@ For the analysis of final cued recall accuracy during learning there were fixed 
 
 For the analysis of working memory accuracy the fixed effects of item type, age-group, distraction, and interval were included in the model along with a random participant intercept, effect of item type, and their correlation. This model also included a random item (to-be-recalled word) effect. Age-group, distraction, and interval were coded as previously outlined and item type was coded so that (1) match items were compared to the other three item types (match = 1, mis-match = new-new = old-new = -1/3), (2) new-new items were compared to mis-match and old-new items (match = 0, mis-match = -1/2, new-new = 1, old-new = -1/2), and (3) mis-match items were contrasted with old-new items (match = 0, mis-match = 1, new-new = 0, old-new = -1).
 
-<!--
-describe what is presented in the tables and text? Something like:
-
-Estimates of fixed effects on the log odds scale are presented in tables along with their 95% highest density intervals (95% HDI), which indicate whether zero is among credible parameter values, and the proportion of posterior samples greater than zero, which gives an indication of the degree of support for positive or negative values of a particular coefficient (50% = either way). In the text we project the model fitted values back to probability space to construct contrasts in terms of accuracy differences and their associated uncertainty (95% HDIs).
--->
+Estimates of fixed effects on the log odds scale are presented in tables along with their 95% highest density intervals (95% HDIs) and the proportion of posterior samples greater than zero, which gives an indication of the degree of support for a particular direction of an effect. In the text we project the model fitted values back to probability space to construct contrasts in terms of accuracy differences and their associated uncertainty (95% HDIs). To quantify the weight of evidence in favor of a particular effect against the null we use Savage-Dickey Bayes factors [@dickey1970weighted; see @wagenmakers2010bayesian for a tutorial] via the `hypothesis` function from `brms`. For testing the null against the alternative the Savage-Dickey Bayes factor is the estimated density at zero of the marginal posterior distribution of a particular effect parameter divided by the density under the prior distribution; if this ratio is greater than one, our degree of belief in zero (i.e., the null) has increased given the data. We denote a Bayes factor in favor of the null $B_{01}$ and in favor of the alternative $1/B_{01} = B_{10}$. For directional hypotheses we quantify the weight of evidence for a positive effect as the number of positive posterior samples over the number of negative posterior samples (as our priors on effects of interest are symmetrical). A Bayes factor in favor of a positive effect is denoted $B_{+-}$ (in favor of negative, $B_{-+}$), with the meaning of a positive effect determined by the coding scheme outlined above. The Bayes factor for directional contrasts is limited by the number of samples, in this case 10000.
 
 # Results
 
@@ -353,7 +324,11 @@ axis(2)
 # mtext(paste(i, c("with distraction", "no distraction")[(d=="no")+1]), adj = 0)
 
 for (g in groups){
-  l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(learn_agg, participant==x), points(jitter(as.numeric(learn_block)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+  for (i in intervals){
+    for (d in distractions){
+      l_ply(.data = ids[[i]][[d]][[g]], .fun = function(x) with(subset(learn_agg, participant==x), points(jitter(as.numeric(learn_block)+jitts[g], amount = .04), acc, pch=16, col=faintCol(cols[g], alpha = 20), type='p')))
+    }
+  }
 }
 for (g in groups){
   # error bars
@@ -396,7 +371,20 @@ compare_cols(learn_2v10[,2]) # 10 s
 
 ```
 
-The Bayesian generalized mixed effects analysis of final learning accuracy results in a significant age-group difference. Younger adults cued recall accuracy was approximately `r compare_cols(learn_yvo[,1])` (95% highest density interval or HDI) and for older adults `r compare_cols(learn_yvo[,2])`, with a difference of `r compare_cols(learn_yvo, col1 = 1, col2 = 2)`. As shown in the supplement, the magnitude of the age-difference in final cued recall performance is consistent across the four experimental conditions. It is worth noting that feedback was given at final test so there is opportunity for additional learning not captured in this measure.
+```{r learn-bfs}
+hy = c("distraction1 = 0",
+       "interval1 = 0",
+       "group1 < 0",
+       "distraction1:interval1 = 0",
+       "distraction1:group1 = 0",
+       "interval1:group1 = 0",
+       "distraction1:interval1:group1 = 0"
+)
+
+learn_hy = hypothesis(learn_brm1, hy)
+```
+
+The Bayesian generalized mixed effects analysis of final learning accuracy results in a clear age-group difference ($B_{-+} > 10000$). Younger adults' cued recall accuracy was approximately `r compare_cols(learn_yvo[,1])` (95% highest density interval or HDI) and for older adults `r compare_cols(learn_yvo[,2])`, with a difference of `r compare_cols(learn_yvo, col1 = 1, col2 = 2)`. As shown in the supplement, the magnitude of the age-difference in final cued recall performance is consistent across the four experimental conditions ($B_{01} =$ `r round(learn_hy$hypothesis$Evid.Ratio[7], 2)` for the interval $\times$ distraction $\times$ group interaction). It is worth noting that feedback was given at final test so there is opportunity for additional learning not captured in this measure.
 
 ## Working Memory
 
@@ -454,7 +442,7 @@ mtext("Working Memory Accuracy", 2, outer = T)
 
 ```
 
-```{r wmtab, results="asis"}
+```{r wmtab, results="asis", warning=F, message=F}
 
 wm_fpars = grep(pattern = "b_", x = parnames(wm_brm1), value = T)
 
@@ -464,10 +452,33 @@ wm_tab = t(apply(wm_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x>0
 
 wm_tab = wm_tab[wm_fpars,]
 
+wm_tab = as.data.frame(wm_tab)
+
+# add bfs
+wm_bfs = hypothesis(wm_brm1, paste0(rownames(fixef(wm_brm1)), " = 0"))
+
+enull = wm_bfs$hypothesis$Evid.Ratio
+ealt = 1/wm_bfs$hypothesis$Evid.Ratio
+
+# enull[enull<0]=0
+# ealt[ealt<0]=0
+
+wm_tab$bf_01 = format(round(enull,2), scientific = F, digits = 2, trim=T)
+wm_tab$bf_10 = format(round(ealt, 2), digits = 2, scientific = F, trim=T)
+
+wm_tab$bf_01[enull < 1/10000] = "<1e-4"
+wm_tab$bf_10[ealt < 1/10000] = "<1e-4"
+
+wm_tab$bf_01[enull > 10000] = ">1e+4"
+wm_tab$bf_10[ealt > 10000 | ealt < 0] = ">1e+4"
+
+wm_tab$bf_01[1] = " - "
+wm_tab$bf_10[1] = " - "
+
 # reformat row labels
 wm_rows = wm_fpars
 wm_rows = gsub(pattern = "b_", "", wm_rows)
-wm_rows = gsub(pattern = ":", " $\\\\times$ ", wm_rows)
+wm_rows = gsub(pattern = ":", "$\\\\times$", wm_rows)
 wm_rows = gsub(pattern = "distraction1", "Distraction", wm_rows)
 wm_rows = gsub(pattern = "group1", "Group", wm_rows)
 wm_rows = gsub(pattern = "interval1", "Interval", wm_rows)
@@ -477,9 +488,19 @@ wm_rows = gsub(pattern = "item_typemismatchVoldnew", "Mis-match vs. old-new", wm
 
 rownames(wm_tab) = wm_rows
 
-capt = "Results of generalized linear mixed effects model for working memory accuracy (note: coefficients on the log-odds scale). Posterior mean, 95\\% highest density interval, and percentage of posterior samples greater than zero."
-print(xtable(wm_tab, caption = capt, label = 'tab:wmtab', align = 'lcccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = function(x){x}, floating=TRUE, table.placement = '!h', comment=F, scalebox = .8, add.to.row = list(pos = list(-1, nrow(wm_tab)), command= c(paste0("\\toprule \n", " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n", " & Mean & Lower & Upper & Perc $>$ 0 \\\\\n","\\midrule \n"), paste0("\\bottomrule \\\\\ "))))
+# bold rows with bf > 10 in favor of null or alt
+wm_tab[,c("mean", "lower", "upper", "pg0")] = format(round(wm_tab[,c("mean", "lower", "upper", "pg0")], 2), digits=2, nsmall = 2) # coerse to text so bolding doesnt mess up formatting
 
+bold_rows = enull > 10 | ealt > 10 | ealt < 0
+
+for (i in which(bold_rows)){
+  rownames(wm_tab)[i] = paste0("\\textbf{", rownames(wm_tab)[i], "}")
+  wm_tab[i,] = paste0("\\textbf{", wm_tab[i,], "}")
+}
+
+capt = "Results of generalized linear mixed effects model for working memory accuracy. Posterior mean, 95\\% highest density interval, percentage of posterior samples greater than zero, and Bayes factors in favor of the null and alternative."
+print(xtable(wm_tab, caption = capt, label = 'tab:wmtab', align = 'lcccccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = function(x){x}, floating=TRUE, table.placement = '!h', comment=F, scalebox = .8, add.to.row = list(pos = list(-1, nrow(wm_tab)), command= c(paste0("\\toprule \n", " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n", " & Mean & Lower & Upper & Perc $>$ 0 & $B_{01}$ & $B_{10}$ \\\\\n","\\midrule \n"), paste0("\\bottomrule \n", "\\multicolumn{7}{p{1.2\\textwidth}}{\\emph{Note:} Coefficients on the log-odds scale. Effects with a Bayes factor greater than 10 in favor of the null or alternative are highlighted in bold.}\\\\"))))
+                                                                                              
 ```
 
 ```{r, results="hide"}
@@ -544,11 +565,52 @@ compare_cols(wm_itdis, 7 ,8) # old
 
 ```
 
-Figure \ref{fig:wmplot} presents cued recall accuracy in the working memory task and Table \ref{tab:wmtab} presents estimates of the fixed effects. There is an overall effect of distraction with better performance without distraction (`r compare_cols(wm_dvn[,2])`) relative to with distraction (`r compare_cols(wm_dvn[,1])`; difference: `r compare_cols(wm_dvn, col1 = 2, col2 = 1)`). Interval also influences performance in an unexpected direction with better performance following a 10 s delay (`r compare_cols(wm_2v10[,2])`) relative to a 2 s delay (`r compare_cols(wm_2v10[,1])`; difference: `r compare_cols(wm_2v10, col1 = 2, col2 = 1)`). The two age groups differ in cued recall accuracy in the expected direction (younger: `r compare_cols(wm_yvo[,1])`; older: `r compare_cols(wm_yvo[,2])`; difference: `r compare_cols(wm_yvo, col1 = 1, col2 = 2)`). For item type the clearest contrast is between match pairs and the other types (see Table \ref{tab:wmtab}). Accuracy for matching pairs (`r compare_cols(wm_it[,1])`) is much higher than that for new-new pairs (`r compare_cols(wm_it[,3])`), mis-match (`r compare_cols(wm_it[,2])`), and old-new pairs (`r compare_cols(wm_it[,4])`). There is no clear overall difference between new-new pairs and the pairs containing previously learned information (mis-match and old-new), although this is qualified by an interaction discussed further on. The contrast between mis-match and old-new pairs is (just) credibly different from zero, with better accuracy for the former than the latter (difference: `r compare_cols(wm_it, 2, 4)`).
+```{r wm-bfs}
+hy = c("distraction1 > 0", # 1
+       "distraction1 = 0",
+       "interval1 = 0",
+       "group1 < 0",
+       "item_typenewVnonmatch > 0", # 5
+       "item_typematchVrest > 0",
+       "item_typemismatchVoldnew = 0",
+       "distraction1:item_typenewVnonmatch = 0",
+       "distraction1:item_typematchVrest = 0",
+       "distraction1:item_typemismatchVoldnew = 0", # 10
+       "group1:item_typenewVnonmatch > 0",
+       "group1:item_typenewVnonmatch = 0",
+       "item_typenewVnonmatch + 1 * group1:item_typenewVnonmatch = 0", # o
+       "item_typenewVnonmatch + -1 * group1:item_typenewVnonmatch = 0", # y
+       "group1:item_typematchVrest = 0", # 15
+       "group1:item_typemismatchVoldnew = 0",
+       "distraction1:interval1 = 0",
+       "distraction1:interval1:group1 = 0",
+       
+       "interval1:item_typenewVnonmatch = 0",
+       "distraction1:group1:item_typenewVnonmatch = 0", # 20
+       "interval1:group1:item_typenewVnonmatch = 0",
+       "distraction1:interval1:group1:item_typenewVnonmatch = 0",
+       
+       "interval1:item_typematchVrest = 0",
+       "distraction1:group1:item_typematchVrest = 0",
+       "interval1:group1:item_typematchVrest = 0", # 25
+       "distraction1:interval1:group1:item_typematchVrest = 0",
 
-Turning to interactions the distraction $\times$ match vs. other contrast is non-zero. Projecting the model back to accuracy space we find that this is due to a difference between distraction and no distraction for new-new (distraction difference: `r compare_cols(wm_itdis, 6,5)`), mis-match (`r compare_cols(wm_itdis, 4,3)`), and old-new pairs (`r compare_cols(wm_itdis, 8,7)`) but not for match pairs (`r compare_cols(wm_itdis, 2, 1)`). Distraction did not clearly interact with the other item type contrasts.
+       "interval1:item_typemismatchVoldnew = 0",
+       "distraction1:group1:item_typemismatchVoldnew = 0",
+       "interval1:group1:item_typemismatchVoldnew = 0",
+       "distraction1:interval1:group1:item_typemismatchVoldnew = 0" # 30
+       )
+# this was done before deciding to add all bfs to the table so much is redundant but used in text...
 
-```{r postplot, fig.cap="Violin plots of posterior density, posterior mean and 95% highest density intervals for key contrasts of working memory accuracy between different item types and new-new.", results="hide"}
+wm_hy = hypothesis(wm_brm1, hy)
+
+```
+
+Figure \ref{fig:wmplot} presents cued recall accuracy in the working memory task and Table \ref{tab:wmtab} presents estimates of the fixed effects. There is support for an overall effect of distraction ($B_{10} =$ `r round(1/wm_hy$hypothesis$Evid.Ratio[2], 2)`) with better performance without distraction (`r compare_cols(wm_dvn[,2])`) relative to with distraction (`r compare_cols(wm_dvn[,1])`; difference: `r compare_cols(wm_dvn, col1 = 2, col2 = 1)`). Interval is also related to performance ($B_{10} =$ `r round(1/wm_hy$hypothesis$Evid.Ratio[3], 2)`) in an unexpected direction with better performance following a 10 s delay (`r compare_cols(wm_2v10[,2])`) relative to a 2 s delay (`r compare_cols(wm_2v10[,1])`; difference: `r compare_cols(wm_2v10, col1 = 2, col2 = 1)`). The two age groups differ in cued recall accuracy in the expected direction ($B_{-+} > 10000$; younger: `r compare_cols(wm_yvo[,1])`; older: `r compare_cols(wm_yvo[,2])`; difference: `r compare_cols(wm_yvo, col1 = 1, col2 = 2)`). For item type the clearest contrast is between match pairs and the other types (see Table \ref{tab:wmtab}). Accuracy for matching pairs (`r compare_cols(wm_it[,1])`) is much higher than that for new-new pairs (`r compare_cols(wm_it[,3])`), mis-match (`r compare_cols(wm_it[,2])`), and old-new pairs (`r compare_cols(wm_it[,4])`). The Bayes factor clearly favors facilitation for match pairs ($B_{+-} > 10000$). There is no clear overall difference between new-new pairs and the pairs containing previously learned information (mis-match and old-new) and there is very weak evidence for the directional test of lower accuracy for recombined pairs relative to new pairs ($B_{+-} =$ `r round(wm_hy$hypothesis$Evid.Ratio[5], 2)`) However, this is qualified by an interaction discussed further on. The contrast between mis-match and old-new pairs is (just) credibly different from zero, with better accuracy for the former than the latter (difference: `r compare_cols(wm_it, 2, 4)`). However, the Bayes factor in this case slightly favors the null ($B_{01} =$ `r round(wm_hy$hypothesis$Evid.Ratio[7], 2)`)
+
+Turning to interactions there is weak evidence for an interaction between distraction and the match vs. other contrast ($B_{10} =$ `r round(1/wm_hy$hypothesis$Evid.Ratio[9], 2)`). Projecting the model back to accuracy space we find that this is due to a difference between distraction and no distraction for new-new (distraction difference: `r compare_cols(wm_itdis, 6,5)`), mis-match (`r compare_cols(wm_itdis, 4,3)`), and old-new pairs (`r compare_cols(wm_itdis, 8,7)`) but not for match pairs (`r compare_cols(wm_itdis, 2, 1)`). There was stronger evidence against interactions between distraction and the other pair type contrasts (new vs. recombined: $B_{01} =$ `r round(wm_hy$hypothesis$Evid.Ratio[8], 2)`; mis-match vs. old-new: $B_{01} =$ `r round(wm_hy$hypothesis$Evid.Ratio[10], 2)`).
+
+```{r postplot, fig.cap="Violin plots of posterior density, posterior mean and 95% highest density intervals for contrasts of working memory accuracy between different pair types and new-new (top panel). Group differences for each pair type (bottom panel).", results="hide", fig.width=4, fig.height=6}
 
 # plot age contrasts across different combinations of conditions
 # par(mfrow=c(2,1), mar=c(4, 5.5, 2, 1)+.1)
@@ -582,88 +644,82 @@ Turning to interactions the distraction $\times$ match vs. other contrast is non
 # 
 # mtext(text = "A.", side = 3, adj = -.2, font=2, cex = 2)
 
-par(mfrow=c(1,1), mar=c(4, 5.5, 2, 1)+.1)
-plot(NA, xlim=c(-.15, .35), ylim=c(0.5,6.5), xlab="Difference in working memory accuracy from new-new", ylab = "", axes=F)
+par(mfrow=c(2,1), mar=c(4, 5.5, 1, 1)+.1)
+
+plot(NA, xlim=c(-.15, .35), ylim=c(0.5,6.5), xlab="Difference in accuracy from new-new", ylab = "", axes=F)
 box()
 axis(1)
 axis(2, at = c(5.5, 3.5, 1.5), 
      labels = c("match", "mis-match", "old-new"), las=1)
 
 you_col = cols["younger"]; old_col = cols["older"]; diff_col = "grey"
-vioplot2(wm_fitp[,"younger-match"] - wm_fitp[,"younger-new-new"], at = 6, 
+vioplot2(wm_fitp[,"younger-match"] - wm_fitp[,"younger-new-new"], at = 5.75, 
          col = you_col)
-vioplot2(wm_fitp[,"older-match"] - wm_fitp[,"older-new-new"], at = 5.5, 
-         col = old_col)
-vioplot2((wm_fitp[,"younger-match"] - wm_fitp[,"younger-new-new"]) - 
-           (wm_fitp[,"older-match"] - wm_fitp[,"older-new-new"]), at = 5, 
-         col = diff_col)
-
-vioplot2(wm_fitp[,"younger-mis-match"] - wm_fitp[,"younger-new-new"], at = 4,
-         col = you_col)
-vioplot2(wm_fitp[,"older-mis-match"] - wm_fitp[,"older-new-new"], at = 3.5,
+vioplot2(wm_fitp[,"older-match"] - wm_fitp[,"older-new-new"], at = 5.25, 
          col = old_col)
 
-vioplot2((wm_fitp[,"younger-mis-match"] - wm_fitp[,"younger-new-new"]) - 
-           (wm_fitp[,"older-mis-match"] - wm_fitp[,"older-new-new"]), at = 3, 
-         col = diff_col)
-
-vioplot2(wm_fitp[,"younger-old-new"] - wm_fitp[,"younger-new-new"], at = 2,
+vioplot2(wm_fitp[,"younger-mis-match"] - wm_fitp[,"younger-new-new"], at = 3.75,
          col = you_col)
-vioplot2(wm_fitp[,"older-old-new"] - wm_fitp[,"older-new-new"], at = 1.5,
+vioplot2(wm_fitp[,"older-mis-match"] - wm_fitp[,"older-new-new"], at = 3.25,
          col = old_col)
 
-vioplot2((wm_fitp[,"younger-old-new"] - wm_fitp[,"younger-new-new"]) - 
-           (wm_fitp[,"older-old-new"] - wm_fitp[,"older-new-new"]), at = 1, 
-         col = diff_col)
+vioplot2(wm_fitp[,"younger-old-new"] - wm_fitp[,"younger-new-new"], at = 1.75,
+         col = you_col)
+vioplot2(wm_fitp[,"older-old-new"] - wm_fitp[,"older-new-new"], at = 1.25,
+         col = old_col)
 
 abline(v=0, lty=2)
 
-legend(x = 0.35, y = 0.5, legend = c("younger", "older", "younger - older\ndifference"), 
-       pch = 15, col = c(you_col, old_col, diff_col), bty="n", xjust = .9, yjust = 0, cex = .8)
+legend(x = 0.35, y = 0.5, legend = c("younger", "older"), 
+       pch = 15, col = c(you_col, old_col), bty="n", xjust = .9, yjust = 0, cex = .8)
+
+plot(NA, xlim=c(-.15, .2), ylim=c(0.5,6.5), xlab="Group difference (younger - older)", ylab = "", axes=F)
+box()
+axis(1)
+axis(2, at = c(5.5, 3.5, 1.5), 
+     labels = c("match", "mis-match", "old-new"), las=1)
+
+vioplot2((wm_fitp[,"younger-match"] - wm_fitp[,"younger-new-new"]) - 
+           (wm_fitp[,"older-match"] - wm_fitp[,"older-new-new"]), at = 5.5, 
+         col = diff_col)
+
+vioplot2((wm_fitp[,"younger-mis-match"] - wm_fitp[,"younger-new-new"]) - 
+           (wm_fitp[,"older-mis-match"] - wm_fitp[,"older-new-new"]), at = 3.5, 
+         col = diff_col)
+
+vioplot2((wm_fitp[,"younger-old-new"] - wm_fitp[,"younger-new-new"]) - 
+           (wm_fitp[,"older-old-new"] - wm_fitp[,"older-new-new"]), at = 1.5, 
+         col = diff_col)
+
+abline(v=0, lty=2)
 
 # mtext(text = "B.", side = 3, adj = -.2, font=2, cex = 2)
 
 ```
 
-There is a clear age group interaction with the item type contrast comparing new-new pairs with pairs made up of previously studied information (i.e., mis-match, old-new). As shown in Figure \ref{fig:wmplot}, the older groups’ performance for mis-match and old-new pairs was lower than that of new-new pairs. For younger adults it appears that the opposite is the case. Figure \ref{fig:postplot} presents posterior distributions on the accuracy scale for the difference between new-new pairs and the other pair types, irrespective of distraction or interval condition. This confirms that older adults exhibit proactive interference for mis-match and old-new pairs relative to baseline, whereas younger adults exhibit facilitation. The group $\times$ mis-match vs. old-new contrast in Table \ref{tab:wmtab} includes zero in its HDI, suggesting that the group difference does not differ significantly between mis-match and old-new pairs. 
+There is a clear age group interaction with the item type contrast comparing new-new pairs with pairs made up of previously studied information (i.e., mis-match, old-new). The direction of this interaction effect is consistent with older adults being more susceptible to proactive interference ($B_{+-} > 10000$). As shown in Figure \ref{fig:wmplot}, the older groups' performance for mis-match and old-new pairs was lower than that of new-new pairs ($B_{10} =$ `r round(1/wm_hy$hypothesis$Evid.Ratio[13])`). For younger adults it appears that the opposite is the case ($B_{10} =$ `r round(1/wm_hy$hypothesis$Evid.Ratio[14], 2)`). The top panel of Figure \ref{fig:postplot} presents posterior distributions on the accuracy scale for the difference between new-new pairs and the other pair types, irrespective of distraction or interval condition. This confirms that older adults exhibit proactive interference for mis-match and old-new pairs relative to baseline, whereas younger adults exhibit facilitation. The bottom panel of Figure \ref{fig:postplot} shows the group difference in these difference-from-new contrasts and show that the magnitude of difference is similar for the mis-match and old-new pair types. Confirming this, there is strong evidence against the interaction between group and the mis-match vs. old-new contrast ($B_{01} =$ `r round(wm_hy$hypothesis$Evid.Ratio[16])`).
 
-For match pairs relative to new-new, Figure \ref{fig:postplot} shows that older adults exhibit a greater accuracy gain relative to younger adults. This is clearly due to younger adults being near ceiling level performance for match pairs and older adults' lower overall performance giving them more room to climb. The group $\times$ match vs. other interaction (in the unconstrained log odds space) contains zero in its HDI, suggesting that the degree of proactive facilitation is similar across the two age groups. None of the remaining interaction contrasts were credibly different from zero, suggesting that interval and distraction do not significantly modulate age-differences in performance for the different pair types (see Table \ref{tab:wmtab}). Accuracy and reaction times in the search task for participants in the distraction conditions are presented in the supplement. Excluding participants who performed poorly at the search task, and may not have been paying attention, did not change the pattern of working memory task performance.
+For match pairs relative to new-new, Figure \ref{fig:postplot} shows that older adults exhibit a greater accuracy gain relative to younger adults (see bottom panel). This is clearly due to younger adults being near ceiling level performance for match pairs and older adults' lower overall performance giving them more room to climb (see Figure \ref{fig:wmplot}). However, the Bayes factor for the group $\times$ match vs. other interaction (in the unconstrained log odds space) favored the null by approximately `r round(wm_hy$hypothesis$Evid.Ratio[15])`-to-1. As the logistic regression results are less influenced by the ceiling level performance of the younger group we conclude that younger and older participants showed a similar degree of facilitation in this task.
+
+None of the remaining interaction contrasts were credibly different from zero and Bayes factors favored the null, in most cases by at least 3-to-1 (see Table \ref{tab:wmtab}). This suggests that interval and distraction do not significantly modulate age-differences in performance for the different pair types. Accuracy and reaction times in the search task for participants in the distraction conditions are presented in the supplement. Excluding participants who performed poorly at the search task, and may not have been paying attention, did not change the pattern of working memory task performance.
 
 # Discussion
 
+Here we assessed the influence of previously learned image-word pairs in a working memory task. Our findings indicate that younger and older adults show a similar degree of facilitation when to-be-remembered pairs match those learned earlier on in the experiment. Younger adults in our experiment did not show any evidence of interference from previously learned pairs; if anything, younger participants exhibited some facilitation for pairs made of repaired elements from the initial learning phase, relative to the brand new, baseline pairs. Thus the findings of @oberauer2017, that prior learning does not interfere with younger adults working memory, appears to generalize to other stimuli. Importantly the stimuli used here also allowed us to avoid similarity between learned and new responses, which could mask interference effects. Older adults, on the other hand, showed clear evidence of proactive interference from previously learned pairs in the working memory task. 
+
 <!--
-IMHO, disc should start with brief statement of findings, as you have at the end.  
-
-BRB agrees.
-
-A personal preference of mine is to NOT have info about what might be done in the future. (as begins on p 22. Maybe that’s what your next expmt is about] 
--->
-
-Here we assessed the influence of previously learned image-word pairs in a working memory task. Our findings indicate that younger and older adults show a similar degree of facilitation when to-be-remembered pairs match those learned earlier on in the experiment.[^scale] Younger adults in our experiment did not show any evidence of interference from previously learned pairs; if anything, younger participants exhibited some facilitation for pairs made of repaired elements from the initial learning phase, relative to the brand new, baseline pairs. Older adults, on the other hand, showed clear evidence of proactive interference from previously learned pairs in the working memory task. 
-
 [^scale]: This is based on the results of the logistic mixed effects analysis. However, older adults gained more in terms of accuracy (see Figure \ref{fig:postplot}) as they performed at a lower level overall and, therefore, had more space to improve. This highlights the important point that conclusions regarding age-differences are often dependent on the scale of measurement [see, e.g., @Loftus1978; @Salthouse2000]. As the logistic regression results are less influenced by the ceiling level performance of the younger group we conclude that younger and older participants showed a similar degree of facilitation in this task.
-
-<!--
-In this experiment we wanted to build on the findings of @oberauer2017---proactive facilitation from long-term memory in a working memory task with no proactive interference---by using different materials (image-word pairs) and recruiting a sample of older adults to assess age-related differences in proactive effects. Focusing on the younger group, we find clear facilitation in the cued recall of previously learned pairs in our working memory task. Simultaneously, younger participants showed no evidence of interference from previously learned pairs; if anything, younger participants showed some facilitation for pairs made of repaired elements from the initial learning phase, relative to the brand new, baseline pairs. We return to this finding when discussing age-differences below. 
-
-Turning to the older group, they also showed clear facilitation from long-term to working memory. In our logistic regression analysis the degree of facilitation (for match pairs vs. other pair types) was similar across younger and older participants. However, older adults gained more in terms of accuracy (see Figure \ref{fig:postplot}) as they performed at a lower level overall and, therefore, had more space to improve. This highlights the important point that conclusions regarding age-differences are often dependent on the scale of measurement [see, e.g., @Loftus1978; @Salthouse2000]. As the logistic regression results are less influenced by the ceiling level performance of the younger group we conclude that younger and older participants showed a similar degree of facilitation in this task. The older adults in our study, unlike the younger group, showed evidence of proactive interference from previously learned pairs in the working memory task. This was the case in both the logistic regression and when these results were converted back to accuracy scale (see Figure \ref{fig:postplot}). 
 -->
 
 The age-difference in proactive interference found here is in line with findings in the wider paired associates literature using the AB/AC paradigm [@burton2019associative; @wahlheim2014proactive]. One possible interpretation is that, whatever gating or suppression mechanism protects younger adults from interference [see @oberauer2017 for discussion], is impaired in old age and allows information from long-term memory to produce associative competition with the contents of working memory. However, while older adults do appear to be more susceptible to interference, it may be too soon to conclude that a hypothetical gating mechanism is needed to protect working memory from conflicting information in long-term storage.
 
 In particular, a lack of interference in standard AB/AC paradigms is not uncommon [@burton2019associative; see @postman1973critical for a review] and facilitation for AC pairs has also been reported under particular circumstances [@barnes1959fate; @burton2017associative; @wahlheim2013remembering]. In fact, @wahlheim2013remembering have shown that performance for AC pairs reflects a mixture of facilitation and interference [see also @jacoby2013role]. They also show that the balance of these two factors is largely dependent on (1) detection of the change of association from AB to AC and the formation of a composite representation that embeds C into the initial representation of AB during study, preserving their order [see @hintzman2004judgment; @hintzman2010does], and (2) subsequent recall of that change at test. They used a 'remindings report procedure' in which participants indicated if they noticed a change while studying the second list and then reported any other responses that came to mind when recalling the word associated with the cue. When participants were able to report reminding of the initial AB pair they showed facilitation for the AC pairs, whereas when the change was not detected and recollected there was clear proactive interference. @wahlheim2014proactive recently found that older participants were less likely to recollect change and this partially explained their greater susceptibility to proactive interference for AC pairs. This opens up the possibility that finding no detrimental effect of prior learned associations in a working memory task does not necessarily mean that working memory is immune to proactive interference. Rather, this may depend more on the degree to which changes from initial learning are noticed during study and then recalled at test. 
 
-<!--
-There are aspects of the working memory task used here that may hinder detection of change of association, such as the relatively fast presentation of pairs. However, the short interval between study and test may mean that any change salient enough to be detected is likely to be recalled at test and produce facilitation, especially for younger participants who appear to be more likely to detect changes [@wahlheim2014proactive].
--->
+It is possible that younger adults exhibited facilitation in the present experiment as the final level of learning was higher than in @oberauer2017 (their mixture model analysis suggested that around 60% of pairs were recalled at final test) and, consequently, change detection and recollection was more likely. Also, the interpretation of age differences in performance in the working memory task may be limited by the fact that younger adults clearly reached a higher level of learning than did the older adult group. In the supplemental material we present an analysis assessing the relationship between performance in the final learning task and performance in the working memory task. Higher learning is associated with greater facilitation for match pairs versus others but is not clearly associated with differences in accuracy between new-new and the recombined pairs. However, as there is a high degree of uncertainty associated with the correlation estimates, we can not rule out a relationship between the level of learning and degree of interference/facilitation for recombined pairs. Thus, while matching the two groups in their initial level of learning would have been ideal, there is no strong reason to think that our findings regarding age differences in working memory performance, particularly for recombined pairs, would have been vastly different if they were. 
 
-It is possible that younger adults exhibited facilitation in the present experiment as the final level of learning was higher than in @oberauer2017 (their mixture model analysis suggested that around 60% of pairs were recalled at final test) and, consequently, change detection and recollection was more likely. In the supplemental material we present an analysis assessing the relationship between performance in the final learning task and performance in the working memory task. Higher learning is associated with greater facilitation for match pairs versus others but is not clearly associated with differences in accuracy between new-new and the recombined pairs. However, as there is a high degree of uncertainty associated with the correlation estimates, we can not rule out a relationship between the level of learning and degree of interference/facilitation for recombined pairs. One other potentially relevant source of evidence on the source of younger adults' facilitation for recombined pairs comes from the types of errors made in the working memory task. In the supplement we provide some tentative evidence that younger adults were less likely to make within-list transposition errors (i.e., recall a word presented with another cue on that trial) for old-new and mis-match pairs. This is consistent with the recursive reminding proposal of Wahlheim and colleagues [@wahlheim2013remembering; @jacoby2013role; @wahlheim2014proactive] and suggests that, for pairs where a change was detected, the binding of the new image-word pair was strengthened by the presence of the previously learned pair.
+One other potentially relevant source of evidence on the source of younger adults' facilitation for recombined pairs comes from the types of errors made in the working memory task. In the supplement we provide some tentative evidence that younger adults were less likely to make within-list transposition errors (i.e., recall a word presented with another cue on that trial) for old-new and mis-match pairs. This is consistent with the recursive reminding proposal of Wahlheim and colleagues [@wahlheim2013remembering; @jacoby2013role; @wahlheim2014proactive] and suggests that, for pairs where a change was detected, the binding of the new image-word pair was strengthened by the presence of the previously learned pair.
 
 Thus, while the present findings are consistent with the idea that working memory is protected from negative influence from long-term memory (at least for younger adults), the alternative explanation in terms of detection and recollection of changes between previously learned and currently relevant associations remains to be tested. Finding a similar role for change detection and recollection in a working memory task as has been found in the paired associated literature would suggest that working memory is susceptible to interference in a similar manner to other hypothesized memory systems [as argued by, e.g., @beaudry2014focus; @hasher1973learning; @keppel1962proactive]. However, a failure to demonstrate this would further support the need for specialized mechanism that allows learned information to influence working memory storage only when beneficial.
-
-<!--
-There are several approaches future work could take to address this. Firstly, one could apply the report-remindings procedure in a working memory task. Asking participants if they remember previous associations with a particular cue after working memory has been probed would help identify situations in which participants identified a change from learned pairs. Asking participants to identify changes during study may also be possible but would probably require a loss of control over the rate of presentation, which is typically highly controlled in working memory tasks. Secondly, the change detection account predicts, perhaps counterintuitively, that lower levels of learning should be more likely to produce proactive interference. Specifically, manipulations that reduce the likelihood that a change is detected at study should increase the degree of proactive interference. For instance, increasing the number of times an association is presented during learning should increase the chance of change detection during the working memory task and increase facilitation for recombined pairs [see @wahlheim2013remembering]. Third, while change detection could be affected by manipulating degree of learning it is also possible to conceive of manipulations to the working memory task to decrease the likelihood of change detection without necessarily changing the learning phase. For instance, speeding up presentation of pairs may impair participants' ability to detect changes from initially learned pairs and/or may reduce their ability to form a representation of this change that would facilitate subsequent recall. Finally, with regards to older participants, we may expect that manipulations aimed at increasing their ability to detect changes during study would reduce their susceptibility to proactive interference. Manipulations focused on 'unitization' may be particularly relevant here in helping older participants recognize association changes [see @ahmad2015improving; @bastin2013associative]. 
--->
 
 The manipulation of retention interval and the presence or absence of distraction during the interval had little effect on performance and no clear influence on the degree of facilitation or interference seen in either age-group. Having to perform the search task during the delay lowered accuracy overall (with the exception of match pairs) but did not disproportionately affect older adults' performance on the working memory task, which we would expect [see @jaroslawska2019adult]. Further, distraction and the length of the delay interval did not interact, which was expected due to the greater potential for interference with more search problems in the delay interval [@BarrouilletEtAl2007; @OberauerEtAl2012]. It is not clear why these effects did not materialize, although it is interesting to point out that a limited role of delay or distraction in modulating proactive effects from prior learned pairs is consistent with these being primarily driven by processes occurring at encoding (i.e., the detection of change discussed earlier). One unexpected finding was that participants in the 10 s condition performed better in the working memory task than those in the 2 s condition. In the supplement we show that this group also performed better in the final test of learning, suggesting that this finding reflects an artifact of chance differences between groups in overall ability.
 
