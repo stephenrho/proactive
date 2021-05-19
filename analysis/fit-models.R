@@ -115,7 +115,7 @@ mtext("Learning Accuracy", 2, outer = T)
 par(mfcol=c(1,1))
 
 ## analysis
-LOAD = F # set to F to (re-)run models
+LOAD = T # set to F to (re-)run models
 
 learn_dat = within(learn_dat, {
   distraction = as.factor(distraction)
@@ -313,6 +313,19 @@ contrasts(wm_dat$item_type) = cbind(matchVrest = c(1,-1/3,-1/3,-1/3),
 
 wm_dat$word_fac = as.factor(wm_dat$word) # for random effect
 
+# add final learning accuracy
+wm_dat$final_learn_acc = NA
+for (id in unlist(ids)){
+  wm_dat$final_learn_acc[wm_dat$participant==id] = learn_agg$acc[learn_agg$participant == id & learn_agg$learn_block == "final test"]
+}
+
+# replace 1 with .99 for empirical logit...
+
+wm_dat$final_learn_acc[wm_dat$final_learn_acc==1] = .99
+
+wm_dat$final_learn_lacc = qlogis(wm_dat$final_learn_acc)
+
+wm_dat$final_learn_mclacc = wm_dat$final_learn_lacc - mean(wm_dat$final_learn_lacc)
 
 if (!LOAD){
   # priors
@@ -335,8 +348,15 @@ if (!LOAD){
   # summary(wm_brm1_ml)
   
   saveRDS(wm_brm1, file = "rds-files/wm_brm1.rds")
+  
+  # include level of learning and its interaction with pair type as cov
+  wm_brm2 = update(wm_brm1, .~. + final_learn_mclacc + final_learn_mclacc:item_type)
+  
+  saveRDS(wm_brm2, file = "rds-files/wm_brm2.rds")
+  
 } else {
   wm_brm1 = readRDS("rds-files/wm_brm1.rds")
+  wm_brm2 = readRDS("rds-files/wm_brm2.rds")
 }
 
 # transform posterior to probabilities

@@ -43,6 +43,7 @@ documentclass     : "apa6"
 classoption       : "doc"
 output: papaja::apa6_pdf
 replace_ampersands: yes
+numbersections: true
 csl               : https://tinyurl.com/apa6-no-disambiguation
 editor_options: 
   chunk_output_type: console
@@ -111,6 +112,7 @@ for (i in intervals){
 ## load rds files
 learn_brm1 = readRDS("analysis/rds-files/learn_brm1.rds")
 wm_brm1 = readRDS("analysis/rds-files/wm_brm1.rds")
+wm_brm2 = readRDS("analysis/rds-files/wm_brm2.rds")
 
 wmnew_brm2 = readRDS("analysis/rds-files/wmnew_brm2.rds")
 
@@ -473,7 +475,7 @@ print(xtable(sacc_tab, caption = capt, label = 'tab:sacctab', align = 'lcccccc')
 
 ## Search reaction time
 
-Reaction time in the search task was analyzed with a linear mixed effects model with the same fixed and random effects as the analysis of accuracy above. As we are modeling reaction time in seconds we used a Cauchy(1, 1) prior on the intercept term (suggesting we expect average RT to be around 1 s, with a high degree of uncertainty) and Cauchy(0, 1) priors on the other fixed effects. For the standard deviation of random effects we used a half-Cauchy(0, 1) prior and the same LKJ(1) prior on the correlation matrix. Estimates of fixed effects are presented in Table \ref{tab:srttab}.
+Reaction time in the search task was analyzed with a linear mixed effects model with the same fixed and random effects as the analysis of accuracy earlier on. As we are modeling reaction time in seconds we used a Cauchy(1, 1) prior on the intercept term (suggesting we expect average RT to be around 1 s, with a high degree of uncertainty) and Cauchy(0, 1) priors on the other fixed effects. For the standard deviation of random effects we used a half-Cauchy(0, 1) prior and the same LKJ(1) prior on the correlation matrix. Estimates of fixed effects are presented in Table \ref{tab:srttab}.
 
 There is a main effect of interval, with faster response times in the 10 s condition relative to the 2 s condition. Older adults were also slower to respond than younger adults. There was also a main effect of section with faster responses for search alone versus search alongside the working memory task. Finally, interval and section interact as reaction times were shorter for search alone (`r compare_cols(search_fitp2[,1])`) relative to search + working memory (`r compare_cols(search_fitp2[,3])`) in the 2 s condition (difference: `r compare_cols(search_fitp2, 1, 3)`). In the 10 s condition reaction times did not significantly differ between search alone (`r compare_cols(search_fitp2[,2])`) and search with the working memory task (`r compare_cols(search_fitp2[,4])`; difference: `r compare_cols(search_fitp2,1,4)`). 
 
@@ -754,6 +756,72 @@ text(x = 1.05, y = ncol(cor_samps)+.7, bquote(B["01"]), adj=0)
 
 Figure \ref{fig:cor} presents estimates of the correlations and their uncertainty. The only correlations that do not include zero in their highest density intervals are between overall performance in the working memory task (WM Overall) and the final level of learning ($r$ = `r compare_cols(preds = cor_samps[,7])`; $B_{10} > 10000$) as well as the correlation between proactive facilitation for match items in the working memory task (WM PF = match vs. other) with level of learning ($r$ = `r compare_cols(preds = cor_samps[,8])`; $B_{10} =$ `r round(1/cor_bfs$hypothesis$Evid.Ratio[8],2)`), with higher levels of learning associated with greater facilitation. Estimates of the remaining correlations are associated with a high degree of uncertainty and Bayes factors that do not strongly favor the null or alternative (see Figure \ref{fig:cor}). However, in the case of the correlations between proactive interference (WM PI) and level of learning and between overall WM performance with estimates of proactive facilitation or interference (see bottom two rows in Figure \ref{fig:cor}) we can rule out very strong relationships between the other random effects.
 
+As a further exploratory analysis to test whether age differences in learning could be driving any of the findings reported in the main manuscript we redid the analysis of working memory accuracy (reported in the main manuscript) and added logit transformed accuracy in the final test of learning as a covariate.[^one] Final learning performance was mean centered and in addition to modeling the effect of learning accuracy on overall performance we also added the interaction with pair type (e.g., those reaching a higher level of learning may be less susceptible to interference). The results of this analysis are presented in Table \ref{tab:wmtab2}. As in the previous correlation analysis, higher final learning is associated with better performance in the working memory task overall and greater facilitation. However, including this in the model does not affect any of the effects reported in the main manuscript, in particular the finding of greater proactive interference in older versus younger adults.
+
+[^one]: To avoid problems with accuracy of 1 we replaced perfect performance with accuracy of 0.99 (the logit of which is about 4.6).
+
+```{r wmtab2, results="asis", warning=F, message=F}
+
+wm_fpars = grep(pattern = "b_", x = parnames(wm_brm2), value = T)
+
+wm_samps = posterior_samples(wm_brm2, pars=wm_fpars)
+
+wm_tab = t(apply(wm_samps, 2, function(x) c(mean=mean(x), hdi(x), pg0 = mean(x>0)*100)))
+
+wm_tab = wm_tab[wm_fpars,]
+
+wm_tab = as.data.frame(wm_tab)
+
+# add bfs
+wm_bfs = hypothesis(wm_brm2, paste0(rownames(fixef(wm_brm2)), " = 0"))
+
+enull = wm_bfs$hypothesis$Evid.Ratio
+ealt = 1/wm_bfs$hypothesis$Evid.Ratio
+
+# enull[enull<0]=0
+# ealt[ealt<0]=0
+
+wm_tab$bf_01 = format(round(enull,2), scientific = F, digits = 2, trim=T)
+wm_tab$bf_10 = format(round(ealt, 2), digits = 2, scientific = F, trim=T)
+
+wm_tab$bf_01[enull < 1/10000] = "<1e-4"
+wm_tab$bf_10[ealt < 1/10000] = "<1e-4"
+
+wm_tab$bf_01[enull > 10000] = ">1e+4"
+wm_tab$bf_10[ealt > 10000 | ealt < 0] = ">1e+4"
+
+wm_tab$bf_01[1] = " - "
+wm_tab$bf_10[1] = " - "
+
+# reformat row labels
+wm_rows = wm_fpars
+wm_rows = gsub(pattern = "b_", "", wm_rows)
+wm_rows = gsub(pattern = ":", "$\\\\times$", wm_rows)
+wm_rows = gsub(pattern = "distraction1", "Distraction", wm_rows)
+wm_rows = gsub(pattern = "group1", "Group", wm_rows)
+wm_rows = gsub(pattern = "interval1", "Interval", wm_rows)
+wm_rows = gsub(pattern = "item_typematchVrest", "Match vs. other", wm_rows)
+wm_rows = gsub(pattern = "item_typenewVnonmatch", "New-new vs. mis/old", wm_rows)
+wm_rows = gsub(pattern = "item_typemismatchVoldnew", "Mis-match vs. old-new", wm_rows)
+wm_rows = gsub(pattern = "final_learn_mclacc", "Final Learning", wm_rows)
+
+rownames(wm_tab) = wm_rows
+
+# bold rows with bf > 10 in favor of null or alt
+wm_tab[,c("mean", "lower", "upper", "pg0")] = format(round(wm_tab[,c("mean", "lower", "upper", "pg0")], 2), digits=2, nsmall = 2) # coerse to text so bolding doesnt mess up formatting
+
+# bold_rows = enull > 10 | ealt > 10 | ealt < 0
+# 
+# for (i in which(bold_rows)){
+#   rownames(wm_tab)[i] = paste0("\\textbf{", rownames(wm_tab)[i], "}")
+#   wm_tab[i,] = paste0("\\textbf{", wm_tab[i,], "}")
+# }
+
+capt = "Results of generalized linear mixed effects model for working memory accuracy with final learning performance added as a covariate. Posterior mean, 95\\% highest density interval, percentage of posterior samples greater than zero, and Bayes factors in favor of the null and alternative."
+print(xtable(wm_tab, caption = capt, label = 'tab:wmtab2', align = 'lcccccc'), caption.placement = 'top', hline.after = NULL, include.colnames = F, include.rownames = T, sanitize.text.function = function(x){x}, floating=TRUE, table.placement = '!h', comment=F, scalebox = .8, add.to.row = list(pos = list(-1, nrow(wm_tab)), command= c(paste0("\\toprule \n", " & & \\multicolumn{2}{c}{95\\% HDI} & \\\\\n", " & Mean & Lower & Upper & Perc $>$ 0 & $B_{01}$ & $B_{10}$ \\\\\n","\\midrule \n"), paste0("\\bottomrule \n", "\\multicolumn{7}{p{1.2\\textwidth}}{\\emph{Note:} Coefficients on the log-odds scale. Effects with a Bayes factor greater than 10 in favor of the null or alternative are highlighted in bold.}\\\\"))))
+                                                                                              
+```
+
 \clearpage
 
 # Further categorizing responses
@@ -833,7 +901,7 @@ The main analysis just categorized responses as correct or incorrect. However, t
 - `omission`: the participant did not attempt to recall a word
 - `within`: the recalled word was presented with another image on this working memory trial (a within list error or transposition)
 - `previous`: the recalled word was presented during the previous working memory trial
-- `ltm`: the recalled word did not fall into any of the above categories and was one of the 30 words that this participant learned during the first phase
+- `ltm`: the recalled word did not fall into any of the previous categories and was one of the 30 words that this participant learned during the first phase
 - `extra`: the recalled word does not fall into any of the other categories
 
 This new 6 category outcome was analyzed with a categorical mixed effects model via `brms`. The model included fixed effects of interval, distraction, age group, and item type as well as random participant intercept and slope (item type) terms and a random effect of to-be-recalled word. In the categorical model the correct response category was selected as the reference category and coefficients for the remaining categories are given relative to the reference category:
@@ -928,7 +996,7 @@ mtext(text = "p(Response)", side = 2, outer = T, line=.7)
 
 ```
 
-Figure \ref{fig:cat1} presents the estimated response probabilities by age group and item type. In Figure \ref{fig:cat2} we have rescaled the probabilities to account for the fact that older adults make more errors. In this figure the values reflect the estimated proportion of errors that fall into each response category. Crucially, it is clear that, once we account for differences in error rates, older adults do not exhibit higher rates of ltm intrusions.
+Figure \ref{fig:cat1} presents the estimated response probabilities by age group and item type. In Figure \ref{fig:cat2} we have rescaled the probabilities to account for the fact that older adults make more errors. In this figure the values reflect the estimated proportion of errors that fall into each response category. Crucially, it is clear that, once we account for differences in error rates, older adults do not exhibit higher rates of LTM intrusions.
 
 ```{r cat2, fig.cap="Probability of error response categories as a proportion of errors (p(Response) / [1 - p(correct)]). Posterior mean and 95% highest density interval. Text above points gives posterior mean and HDI of group difference for that item type."}
 
