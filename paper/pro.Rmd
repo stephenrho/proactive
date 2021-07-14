@@ -20,7 +20,7 @@ affiliation:
     institution: "University of Toronto, Department of Psychology"
 
 note: |
-  Draft: `r format(Sys.time(), '%d %B %Y')`
+  This is a preprint of an article published in Psychonomic Bulletin and Review. The final authenticated version is available online at: https://doi.org/10.3758/s13423-021-01981-2
   
 authornote: |
   Data, code, and materials are available at https://github.com/stephenrho/proactive. Part of this work was supported by a Soupcoff Family Research Grant. B.R.B. is supported by a Canadian Institues of Health (CIHR) Project grant (PJT152879) and a Natural Sciences and Engineering Research Council of Canada (NSERC) Discovery award. L.H. is supported by a NSERC grant (487235).
@@ -192,7 +192,7 @@ print_row = function(x, row=1){
 
 ```
 
-Performance on memory tasks is typically facilitated when participants have previously encountered, or have prior experience, with the to-be-remembered information [e.g., @ericsson1995long]. However, prior memory can also impede the formation of new memories, especially when there is conflict between the old and new information. A clear example of this comes from paired associates learning [e.g., @melton1940influence; @postman1973critical], where the prior learning of so-called AB pairs[^nom] impedes the subsequent learning of AC pairs (relative to pairs of previously unseen items, sometimes referred to as DE pairs). This dampening of new acquisition by previously learned, but no longer relevant, information is referred to as *proactive interference* (or proactive inhibition). The ability to effectively manage proactive interference in various tasks is an important source of individual [@bunting2006proactive; @hasher2007] and age group differences [@emery2008age; @lustig2001working].
+Performance on memory tasks is typically facilitated when participants have previously encountered, or have prior experience with, the to-be-remembered information [e.g., @ericsson1995long]. However, prior memory can also impede the formation of new memories, especially when there is conflict between the old and new information. A clear example of this comes from paired associates learning [e.g., @melton1940influence; @postman1973critical], where the prior learning of so-called AB pairs[^nom] impedes the subsequent learning of AC pairs (relative to pairs of previously unseen items, sometimes referred to as DE pairs). This dampening of new acquisition by previously learned, but no longer relevant, information is referred to as *proactive interference* (or proactive inhibition). The ability to effectively manage proactive interference in various tasks is an important source of individual [@bunting2006proactive; @hasher2007] and age group differences [@emery2008age; @lustig2001working].
 
 [^nom]: Where the first letter refers to a stimulus or cue and the second refers to an associated response.
 
