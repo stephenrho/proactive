@@ -1,0 +1,377 @@
+---
+title: "Proactive online - Experiment 3 (younger adults)"
+output:
+  pdf_document: default
+  html_document: default
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+
+library(plyr)
+library(ez)
+library(lme4)
+library(psych)
+
+source("../../exp1/analysis/useful_functions.R")
+
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+
+# read
+search_dat_dist = read.csv("exp3_search_dist.csv", stringsAsFactors = F)
+wm_dat_dist = read.csv("exp3_wm_dist.csv", stringsAsFactors = F)
+learn_dat_dist = read.csv("exp3_learn_dist.csv", stringsAsFactors = F)
+
+wm_dat_blan = read.csv("exp3_wm_blan.csv", stringsAsFactors = F)
+learn_dat_blan = read.csv("exp3_learn_blan.csv", stringsAsFactors = F)
+
+# combine
+wm_dat_dist$exp = "distraction"
+wm_dat_blan$exp = "no distraction"
+
+wm_dat = rbind(wm_dat_blan, wm_dat_dist)
+
+learn_dat_dist$exp = "distraction"
+learn_dat_blan$exp = "no distraction"
+
+learn_dat = rbind(learn_dat_blan, 
+      learn_dat_dist[,which(!(colnames(learn_dat_dist) %in% setdiff(colnames(learn_dat_dist), colnames(learn_dat_blan))))]
+)
+
+ids = list()
+
+ids[["distraction"]] = unique(wm_dat_dist$participant)
+ids[["no distraction"]] = unique(wm_dat_blan$participant)
+
+conditions = c("no distraction", "distraction")
+
+```
+
+# Summary
+
+This experiment was a follow up to our previous online experiments using a 2 s retention interval in a WM task either with distraction (a search task) or without. In both cases younger participants did not show evidence of proactive interference from previously learned pairs. In this experiment we extended the interval to 10 s. In one condition this interval was blank (no distraction) and in another condition participants responded to 4 search problems during the interval (2 s to respond + 0.5 s ISI).
+
+# Participants
+
+`r length(ids[["no distraction"]])` adults aged 18-35 recruited via prolific took part on the no distraction condition and `r length(ids[["distraction"]])` took part in the distraction/search condition.
+
+# Learning
+
+```{r}
+
+# find bad performers
+learn_overall = ddply(learn_dat, c("participant", "exp"), summarize,
+                  N = length(recall_acc), 
+                  acc = mean(recall_acc),
+                  mean_rt = mean(recalled_rt),
+                  prop_noresp = mean(recalled %in% c("?", "")))
+
+#learn_overall[learn_overall$acc < .5,]
+
+
+learn_agg = ddply(learn_dat, c("participant", "exp", "learn_block"), summarize,
+                  N = length(recall_acc), 
+                  acc = mean(recall_acc),
+                  mean_rt = mean(recalled_rt),
+                  prop_noresp = mean(recalled %in% c("?", "")))
+
+learn_agg$learn_block = factor(learn_agg$learn_block, levels = c("1", "2", "3", "final test"))
+
+learn_mse = summarySEwithin(data = learn_agg, measurevar = "acc", betweenvars = "exp", withinvars = "learn_block")
+
+
+### plot 1: overall performance in each learning block + final test performance
+
+jitts = c("no distraction" = -.05, "distraction" = .05)
+cols = c("no distraction" = "violet", "distraction" = "forestgreen")
+
+plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+#box()
+axis(1, at = 1:4, labels = c("Block 1", "Block 2", "Block 3", "Final Test"))
+axis(2)
+
+for (g in conditions){
+  # individual data points
+  l_ply(.data = ids[[g]], .fun = function(x) with(subset(learn_agg, participant==x), points(jitter(as.numeric(learn_block)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+}
+for (g in conditions){
+  # error bars
+  with(subset(learn_mse, exp==g), errBars(means = acc, error = se, xpos = as.numeric(learn_block)+jitts[g]))
+  # points
+  with(subset(learn_mse, exp==g), points(as.numeric(learn_block)+jitts[g], acc, pch=16, col=cols[g], type='b'))
+}
+
+legend("bottomright", legend = conditions, pch=16, col=cols, bty='n')
+
+mtext("Recall accuracy for learning phase", font=2, line=1, adj=0)
+
+mtext("(Note: participants kept doing blocks\nuntil they got 80% or had done 3)", side = 1, line=4, adj=0)
+
+
+## analysis
+# compare final learning performance
+learn_dat$exp = as.factor(learn_dat$exp)
+contrasts(learn_dat$exp) = c(-1,1)
+ 
+learn_m1 = glmer(recall_acc ~ exp + (1 | participant), 
+                 data = subset(learn_dat, learn_block=="final test"), 
+                 family = binomial(link = "logit"))
+
+# summary(learn_m1)
+
+```
+
+The learning phase of the experiment did not differ between the conditions of the experiment. Participants looped through the pairs in groups of 10 until they got 80% or more correct or they had completed three loops. The table below shows how many participants completed the different 'stages' of learning (all participants did at least one loop and the final test):
+
+```{r}
+knitr::kable(table(learn_agg$exp, learn_agg$learn_block))
+```
+
+Accuracy in the final test was analysed using a generalized mixed effects model with fixed effect of condition and random participant intercept. The two groups do not significantly differ in their performance at the end of the learning phase, `r print_coef(learn_m1, eff=2)`.
+
+# Working memory
+
+```{r}
+
+wm_overall = ddply(wm_dat, c("participant", "exp"), summarize,
+                   N = length(recall_acc),
+                   acc = mean(recall_acc),
+                   mean_rt = mean(recall_rt))
+
+# hist(wm_overall$acc)
+# wm_overall[wm_overall$acc <.2,]
+
+
+wm_agg = ddply(wm_dat, c("participant", "exp", "item_type"), summarize,
+                   N = length(recall_acc),
+                   acc = mean(recall_acc),
+                   mean_rt = mean(recall_rt))
+
+wm_agg$item_type = as.factor(wm_agg$item_type)
+
+wm_mse = summarySEwithin(data = wm_agg, measurevar = "acc", betweenvars = "exp", withinvars = "item_type")
+
+
+### plot 2: performance in the wm task by item type
+
+plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+#box()
+axis(1, at = 1:4, labels = levels(wm_agg$item_type))
+axis(2)
+
+for (g in conditions){
+  # individual data points
+  l_ply(.data = ids[[g]], .fun = function(x) with(subset(wm_agg, participant==x), points(jitter(as.numeric(item_type)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+}
+for (g in conditions){
+  # error bars
+  with(subset(wm_mse, exp==g), errBars(means = acc, error = se, xpos = as.numeric(item_type)+jitts[g]))
+  # points
+  with(subset(wm_mse, exp==g), points(as.numeric(item_type)+jitts[g], acc, pch=16, col=cols[g], type='b'))
+}
+
+legend("bottomright", legend = c("1 (no distraction)", "2 (distraction)"), title = "Condition", pch=16, col=cols, bty='n')
+
+mtext("Working memory performance by item type", font=2, line=1, adj=0)
+
+
+# # analysis
+wm_dat$item_type = as.factor(wm_dat$item_type)
+wm_dat$exp = as.factor(wm_dat$exp)
+
+contrasts(wm_dat$item_type) = cbind(matchVrest = c(1,-1/3,-1/3,-1/3),
+                                        newVnonmatch=c(0,-1/2,1,-1/2),
+                                        mismatchVoldnew=c(0,1,0,-1))
+contrasts(wm_dat$exp) = c(-1,1)
+
+wm_m1 = glmer(recall_acc ~ 1 + exp*item_type + (1 + item_type | participant),
+              data = wm_dat,
+              family = binomial(link = "logit"))
+
+#summary(wm_m1)
+
+wm_m1_an = car::Anova(wm_m1)
+
+# wm_m1.1 = glmer(recall_acc ~ 1 + item_type + (1 + item_type | participant),
+#               data = subset(wm_dat, exp==1),
+#               family = binomial(link = "logit"))
+# 
+# wm_m1.2 = glmer(recall_acc ~ 1 + item_type + (1 + item_type | participant),
+#               data = subset(wm_dat, exp==2),
+#               family = binomial(link = "logit"))
+
+# summary(wm_m1.y)
+# summary(wm_m1.o)
+
+# recode item type
+# wm_dat$pif = "new-new"
+# wm_dat$pif[wm_dat$item_type == "match"] = "match"
+# wm_dat$pif[wm_dat$item_type %in% c("old-new", "mis-match")] = "non-match"
+# 
+# wm_dat$pif = as.factor(wm_dat$pif)
+# 
+# contrasts(wm_dat$pif) = cbind(PF = c(1,-1/2,-1/2),
+#                                         PI=c(0,1,-1))
+# 
+# wm_m2 = glmer(recall_acc ~ 1 + exp*pif + (1 + pif | participant),
+#               data = wm_dat,
+#               family = binomial(link = "logit"))
+
+#summary(wm_m2)
+
+#car::Anova(wm_m2)
+
+# regular anova
+# wm_aov1 = ezANOVA(wm_agg, dv = acc, wid = participant,
+#                   within = item_type, between = exp)
+
+# t_match = t.test(acc ~ group, data = subset(wm_agg, item_type=="match"), var.equal=T)
+# t_new = t.test(acc ~ group, data = subset(wm_agg, item_type=="new-new"), var.equal=T)
+# t_mismatch = t.test(acc ~ group, data = subset(wm_agg, item_type=="mis-match"), var.equal=T)
+# t_oldnew = t.test(acc ~ group, data = subset(wm_agg, item_type=="old-new"), var.equal=T)
+
+# wm_aov2 = ezANOVA(subset(wm_agg, item_type != "match"), dv = acc, wid = participant,
+#                   within = item_type, between = exp)
+
+```
+
+The plot above shows performance in the WM task. In the analysis the factor of item type was coded so that (1) match items were compared to the other three item types, (2) new-new items were compared to mis-match and old-new items, and (3) mis-match items were contrasted with old-new items. For condition, distraction was coded -1 and no distraction was coded +1. Random participant intercepts and effects of item type were also included.
+
+The main effect of item type is significant, `r print_chi(wm_m1_an, 2)`, but the main effect of condition, `r print_chi(wm_m1_an, 1)`, and the condition by item type interaction are not significant, `r print_chi(wm_m1_an, 3)`.
+
+There is a clear benefit for match items relative to the rest, `r print_coef(wm_m1, 3)`. Accuracy is also somewhat higher for mis-match and old-new items relative to new-new, `r print_coef(wm_m1, 4)`. This is the opposite of what we would expect from PI. The contrast of mis-match to old-new is not significant, `r print_coef(wm_m1, 5)`. 
+
+# Search task 
+
+Before the working memory task participants completed 20 trials of the search task by itself. The first 4 trials are excluded as practice to leave 16 'search alone' trials. Each WM trial resulted in 4 search observations (16*4 = 64 total per participant). The plot below shows accuracy and mean response times to the search task.
+
+```{r}
+
+search_dat_dist=subset(search_dat_dist, !(wm_trial %in% 1:3))
+search_dat_dist=subset(search_dat_dist, !(search_loop.thisN %in% 0:3))
+
+search_agg = ddply(search_dat_dist, c("participant", "section"), summarize,
+                   N = length(accuracy),
+                   acc = mean(accuracy),
+                   prop_missed = mean(is.na(s_respright)),
+                   mean_rt = mean(search_resp.rt, na.rm=T))
+
+search_agg$section = as.factor(search_agg$section)
+
+search_mse = summarySEwithin(data = search_agg, measurevar = "acc", withinvars = "section")
+search_rt_mse = summarySEwithin(data = na.omit(search_agg), measurevar = "mean_rt", withinvars = "section")
+
+
+par(mfrow=c(1,2)) ; g=2 # plot search accuracy and rt
+
+# acc
+plot(NA, xlim=c(.7,2.3), ylim=c(0,1), xlab="", ylab="Search Accuracy", axes=F)
+#box()
+axis(1, at = 1:2, labels = levels(search_agg$section))
+axis(2)
+
+# individual data points
+l_ply(.data = ids[["distraction"]], .fun = function(x) with(subset(search_agg, participant==x), points(jitter(as.numeric(section), amount = .025), acc, pch=16, col=faintCol(cols[g]), type='b')))
+
+# error bars
+with(search_mse, errBars(means = acc, error = se, xpos = as.numeric(section)))
+# points
+with(search_mse, points(as.numeric(section), acc, pch=16, col=cols["distraction"], type='b'))
+
+mtext("Search accuracy and RT", font=2, line=1, adj=0)
+
+# rt
+plot(NA, xlim=c(.7,2.3), ylim=c(0.5,2), xlab="", ylab="Search RT (s)", axes=F)
+#box()
+axis(1, at = 1:2, labels = levels(search_agg$section))
+axis(2)
+
+# individual data points
+l_ply(.data = ids[["distraction"]], .fun = function(x) with(subset(search_agg, participant==x), points(jitter(as.numeric(section), amount = .025), mean_rt, pch=16, col=faintCol(cols[g]), type='b')))
+
+# error bars
+with(search_rt_mse, errBars(means = mean_rt, error = se, xpos = as.numeric(section)))
+# points
+with(search_rt_mse, points(as.numeric(section), mean_rt, pch=16, col=cols["distraction"], type='b'))
+
+# analysis of search acc/rt
+search_dat_dist$section = as.factor(search_dat_dist$section)
+contrasts(search_dat_dist$section) = c(-1,1)
+
+search_acc_m1 = glmer(accuracy ~ section + (1 + section | participant), data = search_dat_dist, family = binomial)
+
+search_rt_m1 = lmer(search_resp.rt ~ section + (1 + section | participant), data = search_dat_dist)
+
+```
+
+Mixed effects models find that seach accuracy is significantly higher in the WM task relative to search alone, `r print_coef(search_acc_m1, 2)`. Reaction times are also significantly shorter with WM, $b$ = -0.05 (SE = 0.02), $t$ = -2.33, $p <$ 0.05. The extensive practice offered by the number of search trials in the WM task likely improved performance.
+
+### Excluding low search performers
+
+```{r}
+
+# exclude low search performers and re-do wm model
+search_thresh = .6
+
+low_search = search_agg$participant[with(search_agg, acc < search_thresh & section == "wm")]
+
+wm_agg2 = ddply(subset(wm_dat, !(participant %in% low_search)), c("participant", "exp", "item_type"), summarize,
+                   N = length(recall_acc),
+                   acc = mean(recall_acc),
+                   mean_rt = mean(recall_rt))
+
+wm_agg2$item_type = as.factor(wm_agg2$item_type)
+
+wm_mse2 = summarySEwithin(data = wm_agg2, measurevar = "acc", betweenvars = "exp", withinvars = "item_type")
+
+
+### plot 2: performance in the wm task by item type
+
+plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+#box()
+axis(1, at = 1:4, labels = levels(wm_agg2$item_type))
+axis(2)
+
+for (g in conditions){
+  # individual data points
+  l_ply(.data = ids[[g]], .fun = function(x) with(subset(wm_agg2, participant==x), points(jitter(as.numeric(item_type)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+}
+for (g in conditions){
+  # error bars
+  with(subset(wm_mse2, exp==g), errBars(means = acc, error = se, xpos = as.numeric(item_type)+jitts[g]))
+  # points
+  with(subset(wm_mse2, exp==g), points(as.numeric(item_type)+jitts[g], acc, pch=16, col=cols[g], type='b'))
+}
+
+legend("bottomright", legend = c("1 (no distraction)", "2 (distraction)"), title = "Condition", pch=16, col=cols, bty='n')
+
+mtext("Working memory: excluding low search accuracy participants", font=2, line=1, adj=0)
+
+
+## 
+wm_m3 = glmer(recall_acc ~ 1 + exp*item_type + (1 + item_type | participant),
+              data = subset(wm_dat, !(participant %in% low_search)),
+              family = binomial(link = "logit"))
+
+wm_m3_an = car::Anova(wm_m3)
+
+# summary(wm_m1)
+# summary(wm_m3)
+
+```
+
+In the search task figure above there are some participants who may have not engaged much with the distracting search task, resulting in low accuracy. Therefore, an additional analysis of the working memory data was performed in which participants with accuracy less than `r round(search_thresh*100)`% in the search task, when performed alongside the WM task, are excluded. This results in the exclusion of `r length(low_search)` participants and WM accuracy following this exclusion is presented in the figure above.
+
+Excluding these participants does not change the pattern of effects. The main effect of item type is significant, `r print_chi(wm_m3_an, 2)`, whereas condition, `r print_chi(wm_m3_an, 1)`, and the interaction, `r print_chi(wm_m3_an, 3)`, are both non-significant.
+
+# Summary
+
+- No PI again...
+- Some evidence that people are actually performing better for recombined pairs where we would expect PI
+- Slightly worse performance (not significant with 25 per group) under distraction
+- The search task may not be sufficiently demanding and/or disruptive to rehearsal
+- To follow up we could try a different distracting task, like the addition verification task (e.g., 3 + 4 = 8? true or false) that we used in the lab version
+
+<!--
+- It's possible that the high level of learning leads to proactive facilitation even for recombined items as people "recollect change" (in other words, they remember A-B when presented with A-C and form a composite representation, A-B-C, that may prevent B and C competing at WM recall; e.g., [Wahlheim & Jacoby, 2013](https://link.springer.com/article/10.3758/s13421-012-0246-9)). 
+-->

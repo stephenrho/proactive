@@ -1,0 +1,508 @@
+---
+title: "Proactive online - Experiment 2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+
+# any excludes?
+
+exclude_ids = c()
+
+prolific_files = list.files(pattern = "prolific")
+
+prolific_data = prolific_files[c(grep(pattern = "younger", x = prolific_files),
+                                 grep(pattern = "older", x = prolific_files))]
+
+groups = c("younger", "older")
+
+library(plyr)
+library(ez)
+library(lme4)
+library(psych)
+
+source("../../exp1/analysis/useful_functions.R")
+
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+```{r, results="hide"}
+
+# read data
+datloc <- "../task/data/"
+
+dob = c()
+
+for (i in 1:length(groups)){
+  info <- read.csv(prolific_data[i],
+                 stringsAsFactors = F)
+  
+  info$group = groups[i]
+  
+  assign(x = paste0("info_", groups[i]), value = info)
+  
+  pids <- info$participant_id[info$status %in% c("AWAITING REVIEW", "APPROVED")]
+  
+  # exclude people
+  pids = pids[!(pids %in% exclude_ids)]
+  
+  assign(x = paste0("pids_", groups[i]), value = pids)
+  
+  # find data files for each participant
+  files = unlist(lapply(pids, function(x) list.files(path=datloc, pattern = x)))
+  
+  # keep only csvs
+  files = files[grep(pattern = ".csv", x = files)]
+  
+  full_dat = data.frame()
+  
+  for (x in files){
+    tmp = tryCatch(read.csv(paste0(datloc, x), stringsAsFactors = F), error=function(i) matrix(NA,2,2))
+    
+    if ("please.enter.your.date.of.birth..dd.mm.yyyy." %in% colnames(tmp)){
+      dob = rbind(dob, c(tmp$participant[1], tmp$please.enter.your.date.of.birth..dd.mm.yyyy.[1]))
+      
+      tmp$please.enter.your.date.of.birth..dd.mm.yyyy. = NULL
+    }
+  
+    if (!(nrow(tmp)%in% c(966, 1326, 1686))){
+      cat(groups[i], ": file ", x, " is incomplete\n")
+      cat(nrow(tmp), " rows\n")
+    } else if (ncol(tmp) != 138){
+      cat(groups[i], ": file ", x, " is incomplete\n")
+      cat(ncol(tmp), " cols\n")
+    } else {
+      full_dat = rbind(full_dat, tmp)
+    }
+  }
+  
+  full_dat$group = groups[i]
+  
+  assign(x = paste0("full_dat_", groups[i]), value = full_dat)
+}
+
+info_younger = subset(info_younger, participant_id %in% pids_younger) 
+info_older = subset(info_older, participant_id %in% pids_older) 
+
+info = rbind(info_younger[,colnames(info_older)],
+             info_older[,colnames(info_older)])
+
+full_dat = rbind(full_dat_younger, full_dat_older)
+
+consent=subset(full_dat, consent_key.keys=="y")
+
+dat=subset(full_dat, list==list_no)
+
+# search data
+search_dat=subset(full_dat, !is.na(s_tarright) | word1 != "")
+
+search_dat$section = "wm"
+search_dat$section[!is.na(search_dat$search_loop.thisN)] = "search_alone"
+
+search_dat$list_no[search_dat$section == "search_alone"] = search_dat$list[search_dat$section == "search_alone"]
+
+search_dat$list_no[which(!is.na(search_dat$prac_wm_trial_loop.thisN))-1] = search_dat$list[which(!is.na(search_dat$prac_wm_trial_loop.thisN))-1]
+
+search_dat = tidyr::fill(search_dat, list_no, .direction="up")
+
+search_dat = subset(search_dat, !is.na(s_tarright) & list_no == list)
+
+search_dat$wm_trial = NA
+search_dat$wm_trial[search_dat$section=="wm"] = 1:19
+
+# take out practice
+search_dat = subset(search_dat, !(wm_trial %in% 1:3))
+search_dat = subset(search_dat, !(search_loop.thisN %in% 0:3))
+
+#with(search_dat, table(participant, section))
+
+search_dat$s_respright = as.integer(search_dat$search_resp.keys == "0")
+search_dat$accuracy = as.integer(with(search_dat, s_respright == s_tarright))
+search_dat$accuracy[is.na(search_dat$accuracy)] = 0
+
+#aggregate(accuracy ~section, data = search_dat, FUN = mean)
+#aggregate(is.na(s_respright) ~ section, data = search_dat, FUN = mean)
+
+###
+dat$section = NA
+dat$section[with(dat, !is.na(learn_study_loop.thisN) || !is.na(learn_test_loop.thisN))] <- "learning"
+dat$section[with(dat, !is.na(final_learn_test.thisN))] <- "learn_test"
+dat$section[with(dat, !is.na(wm_trial_loop.thisN))] <- "wm"
+
+table(dat$section)
+
+### LEARNING DATA
+full_learn_dat = subset(dat, section %in% c("learning", "learn_test"))
+
+full_learn_dat$phase = ifelse(!is.na(full_learn_dat$learn_study_loop.thisN), "study", "test")
+
+learn_dat = subset(full_learn_dat, phase == "test")
+
+aggregate(recall_acc ~ participant, data = learn_dat, FUN = mean)
+
+## here we could match pairs to their study position... (some are missing the very first study event...)
+
+# label learning blocks
+learn_dat$learn_block = "final test"
+
+for (ppt in unique(learn_dat$participant)){
+  tmp = subset(learn_dat, participant == ppt)
+  
+  nb = nrow(subset(tmp, section == "learning"))/30
+  
+  learn_dat$learn_block[with(learn_dat, participant == ppt & section=="learning")] = rep(1:nb, each=30)
+}
+
+### WORKING MEMORY DATA
+full_wm_dat = subset(dat, section == "wm")
+
+# match item_type to order probed
+
+full_wm_dat$wm_probed_type1 = NA
+full_wm_dat$wm_probed_type2 = NA
+full_wm_dat$wm_probed_type3 = NA
+full_wm_dat$wm_probed_type4 = NA
+
+full_wm_dat$wm_probed_word1 = NA
+full_wm_dat$wm_probed_word2 = NA
+full_wm_dat$wm_probed_word3 = NA
+full_wm_dat$wm_probed_word4 = NA
+
+full_wm_dat$wm_probed_image1 = NA
+full_wm_dat$wm_probed_image2 = NA
+full_wm_dat$wm_probed_image3 = NA
+full_wm_dat$wm_probed_image4 = NA
+
+for (i in 1:nrow(full_wm_dat)){
+  # type
+  full_wm_dat$wm_probed_type1[i] = full_wm_dat[i, paste0("item_type", full_wm_dat$wm_probed1[i]+1)]
+  
+    full_wm_dat$wm_probed_type2[i] = full_wm_dat[i, paste0("item_type", full_wm_dat$wm_probed2[i]+1)]
+    
+      full_wm_dat$wm_probed_type3[i] = full_wm_dat[i, paste0("item_type", full_wm_dat$wm_probed3[i]+1)]
+      
+        full_wm_dat$wm_probed_type4[i] = full_wm_dat[i, paste0("item_type", full_wm_dat$wm_probed4[i]+1)]
+        
+  # word
+  full_wm_dat$wm_probed_word1[i] = full_wm_dat[i, paste0("word", full_wm_dat$wm_probed1[i]+1)]
+  
+  full_wm_dat$wm_probed_word2[i] = full_wm_dat[i, paste0("word", full_wm_dat$wm_probed2[i]+1)]
+  
+  full_wm_dat$wm_probed_word3[i] = full_wm_dat[i, paste0("word", full_wm_dat$wm_probed3[i]+1)]
+  
+  full_wm_dat$wm_probed_word4[i] = full_wm_dat[i, paste0("word", full_wm_dat$wm_probed4[i]+1)]
+        
+  # image
+  full_wm_dat$wm_probed_image1[i] = full_wm_dat[i, paste0("image", full_wm_dat$wm_probed1[i]+1)]
+  
+  full_wm_dat$wm_probed_image2[i] = full_wm_dat[i, paste0("image", full_wm_dat$wm_probed2[i]+1)]
+  
+  full_wm_dat$wm_probed_image3[i] = full_wm_dat[i, paste0("image", full_wm_dat$wm_probed3[i]+1)]
+  
+  full_wm_dat$wm_probed_image4[i] = full_wm_dat[i, paste0("image", full_wm_dat$wm_probed4[i]+1)]
+}
+
+full_wm_dat$wm_tested1=1
+full_wm_dat$wm_tested2=2
+full_wm_dat$wm_tested3=3
+full_wm_dat$wm_tested4=4
+
+full_wm_dat$trial_no = rep(1:16)
+
+col_list = list(
+  paste0("wm_recalled", 1:4),
+  paste0("wm_probed_word", 1:4),
+  paste0("wm_recall_acc", 1:4),
+  paste0("wm_recall_rt", 1:4),
+  paste0("wm_probed", 1:4),
+  paste0("wm_tested", 1:4),
+  paste0("wm_probed_image", 1:4),
+  paste0("wm_probed_type", 1:4)
+)
+
+col_names = c("recalled", "word", "recall_acc", "recall_rt", "study_pos", "test_pos", "image", "item_type")
+
+wm_dat = reshape(full_wm_dat[,c("participant", "trial_no", "group", unlist(col_list))], 
+                 varying = col_list, v.names = col_names, direction = "long")
+
+# reorder
+wm_dat = wm_dat[with(wm_dat, order(participant, trial_no, test_pos)),]
+
+
+## ARE DOBS CORRECT?
+
+dob = as.data.frame(dob)
+colnames(dob) = c("participant", "dob")
+
+dob$age_prolific = NA
+dob$date_test = NA
+
+for (i in 1:nrow(dob)){
+  dob$age_prolific[i] = info$age[info$participant_id == dob$participant[i]]
+  dob$date_test[i] = info$started_datetime[info$participant_id == dob$participant[i]]
+}
+
+dob$dob_age = as.numeric(difftime(
+  strptime(x = dob$date_test, format = "%Y-%m-%d"), 
+  strptime(x = dob$dob, format = "%d/%m/%Y"), units = "days"))/365
+
+dob$age_disc = with(dob, age_prolific - dob_age)
+
+subset(dob, abs(age_disc) > 1)
+subset(dob, is.na(dob_age)) # people that entered dob incorrectly...
+
+# misc 
+ids = list(
+  younger = pids_younger,
+  older = pids_older
+)
+
+print_mci = function(x){
+  sprintf("%.3f [%.3f, %.3f]", mean(x), quantile(x, .025), quantile(x, .975))
+}
+
+```
+
+# Summary
+
+Here we're interested in the influence of previously learned associations on maintenance in working memory. Specifically, to what extent to younger and older adults exhibit *proactive facilitation* (PF), better WM performance for learned associations, and *proactive interference* (PI), worse performance when WM stimuli are presented in different pairs to that initially learned? Oberauer et al. (2017) found that younger adults exhibit PF but not PI. Their task required recall of object color on a color wheel and initial levels of learning were not particularly strong (estimates of p(mem) from a mixture model of around 60%). In our experiment participants learned associations between images and words; the former served as a cue for the latter. There were 2 parts:
+
+1. **Learning:** Participants learned 30 image-word associations that were initially presented in study-test blocks of 10 pairs. Each pair was presented for 4 seconds with a .5 second ISI. Following 10 pairs participants were cued to recall words in a random order with each associated image. During this part of the experiment participants were given feedback. The recalled word was presented for .5 seconds in green text if it was correct or red if incorrect. If incorrect, the correct word was then presented with the cue image for restudy for 4 seconds. During the initial phase of learning participants looped through all 30 pairs and if their accuracy across all pairs was under 80% they would loop though the 30 pairs again (3 groups of 10). This continued until the participant got 80% or more correct or 3 loops had been completed (this is referred to as block 1, 2, and 3 in the figure below). Following this there was a final test of learning in which all 30 pairs were cued in a random order. 
+
+2. **Working Memory:** There were 16 working memory trials in which participants were presented with 4 to-be-remembered image-word pairs. For 10 of the trials each pair was a different type (presented in random order). Match items were identical to a previously learned pair, mis-match items were a recombination of a previously learned image and word, old-new items presented a learned image with a new word, and for new-new items both image and word had not previously been seen. For 6 of the trials all 4 pairs were new-new. Each pair was presented for 2 seconds with a .5 second ISI. Following the last pair there was a 2 second blank delay before test. Memory for the 4 pairs was probed by presenting each cue image in a random order. No feedback was given in this part. 
+
+# Participants
+
+`r length(pids_younger)` younger adults aged `r paste(range(info_younger$age), collapse="-")` (`r sprintf("M = %.2f, SD = %.2f", mean(info_younger$age), sd(info_younger$age))`) and `r length(pids_older)` older adults aged `r paste(range(info_older$age), collapse="-")` (`r sprintf("M = %.2f, SD = %.2f", mean(info_older$age), sd(info_older$age))`) were recruited from prolific. An additional younger adult was excluded for providing a majority of null responses (i.e., not typing anything at recall) and an additional older adult was excluded as they reported technical issues during the experiment (possibly related to the use of a specific, rarely used, web browser). The table below presents some more information on the sample.
+
+```{r}
+knitr::kable(with(info, table(Nationality, Sex, group)))
+```
+
+# Learning
+
+```{r}
+
+# find bad performers
+learn_overall = ddply(learn_dat, c("participant", "group"), summarize,
+                  N = length(recall_acc), # should be 60
+                  acc = mean(recall_acc),
+                  mean_rt = mean(recalled_rt),
+                  prop_noresp = mean(recalled %in% c("?", "")))
+
+#learn_overall[learn_overall$acc < .5,]
+
+
+learn_agg = ddply(learn_dat, c("participant", "group", "learn_block"), summarize,
+                  N = length(recall_acc), # should be 60
+                  acc = mean(recall_acc),
+                  mean_rt = mean(recalled_rt),
+                  prop_noresp = mean(recalled %in% c("?", "")))
+
+learn_agg$learn_block = factor(learn_agg$learn_block, levels = c("1", "2", "3", "final test"))
+
+learn_mse = summarySEwithin(data = learn_agg, measurevar = "acc", betweenvars = "group", withinvars = "learn_block")
+
+
+### plot 1: overall performance in each learning block + final test performance
+
+jitts = c(younger = -.05, older = .05)
+cols = c(younger = "deepskyblue4", older = "firebrick")
+
+plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+#box()
+axis(1, at = 1:4, labels = c("Block 1", "Block 2", "Block 3", "Final Test"))
+axis(2)
+
+for (g in groups){
+  # individual data points
+  l_ply(.data = ids[[g]], .fun = function(x) with(subset(learn_agg, participant==x), points(jitter(as.numeric(learn_block)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+}
+for (g in groups){
+  # error bars
+  with(subset(learn_mse, group==g), errBars(means = acc, error = se, xpos = as.numeric(learn_block)+jitts[g]))
+  # points
+  with(subset(learn_mse, group==g), points(as.numeric(learn_block)+jitts[g], acc, pch=16, col=cols[g], type='b'))
+}
+
+legend("bottomright", legend = c("Younger", "Older"), pch=16, col=cols, bty='n')
+
+mtext("Recall accuracy for learning phase", font=2, line=1, adj=0)
+
+mtext("(Note: participants kept doing blocks\nuntil they got 80% or had done 3)", side = 1, line=4, adj=0)
+
+
+## analysis
+# compare final learning performance
+# learn_dat$group = as.factor(learn_dat$group)
+# contrasts(learn_dat$group) = c(-1,1)
+# 
+# learn_m1 = glmer(recall_acc ~ group + (1 | participant), 
+#                  data = subset(learn_dat, learn_block=="final test"), 
+#                  family = binomial(link = "logit"))
+
+# summary(learn_m1)
+
+```
+
+The figure above presents data from the learning phase. As noted above, participants looped through the pairs until they got 80% or more correct or they had completed three loops. The table below shows how many participants completed the different 'stages' of learning (all participants did at least one loop and the final test):
+
+```{r}
+knitr::kable(table(learn_agg$group, learn_agg$learn_block))
+```
+
+Accuracy in the final test was analysed using a generalized mixed effects model with fixed effect of age group and random participant intercept. The two groups significantly differ in their performance at the end of the learning phase, `r print_coef(learn_m1, eff=2)`.
+
+# Working memory
+
+```{r}
+
+wm_overall = ddply(wm_dat, c("participant", "group"), summarize,
+                   N = length(recall_acc),
+                   acc = mean(recall_acc),
+                   mean_rt = mean(recall_rt))
+
+# hist(wm_overall$acc)
+# wm_overall[wm_overall$acc <.2,]
+
+
+wm_agg = ddply(wm_dat, c("participant", "group", "item_type"), summarize,
+                   N = length(recall_acc),
+                   acc = mean(recall_acc),
+                   mean_rt = mean(recall_rt))
+            # need to add these columns 
+                   #acc_lax = mean(prop_lett > .8),
+                   #ltm_int = mean(ltm_intru))
+
+wm_agg$item_type = as.factor(wm_agg$item_type)
+
+wm_mse = summarySEwithin(data = wm_agg, measurevar = "acc", betweenvars = "group", withinvars = "item_type")
+
+
+### plot 2: performance in the wm task by item type
+
+plot(NA, xlim=c(.7,4.3), ylim=c(0,1), xlab="", ylab="Recall Accuracy", axes=F)
+#box()
+axis(1, at = 1:4, labels = levels(wm_agg$item_type))
+axis(2)
+
+for (g in groups){
+  # individual data points
+  l_ply(.data = ids[[g]], .fun = function(x) with(subset(wm_agg, participant==x), points(jitter(as.numeric(item_type)+jitts[g], amount = .025), acc, pch=16, col=faintCol(cols[g]), type='p')))
+}
+for (g in groups){
+  # error bars
+  with(subset(wm_mse, group==g), errBars(means = acc, error = se, xpos = as.numeric(item_type)+jitts[g]))
+  # points
+  with(subset(wm_mse, group==g), points(as.numeric(item_type)+jitts[g], acc, pch=16, col=cols[g], type='b'))
+}
+
+legend("bottomleft", legend = c("Younger", "Older"), pch=16, col=cols, bty='n')
+
+mtext("Working memory performance by item type", font=2, line=1, adj=0)
+
+
+# # analysis
+# wm_dat$item_type = as.factor(wm_dat$item_type)
+# wm_dat$group = as.factor(wm_dat$group)
+# 
+# contrasts(wm_dat$item_type) = cbind(matchVrest = c(1,-1/3,-1/3,-1/3), 
+#                                         newVnonmatch=c(0,-1/2,1,-1/2), 
+#                                         mismatchVoldnew=c(0,1,0,-1))
+# contrasts(wm_dat$group) = c(-1,1)
+# 
+# wm_m1 = glmer(recall_acc ~ 1 + group*item_type + (1 + item_type | participant), 
+#               data = wm_dat, 
+#               family = binomial(link = "logit"))
+# 
+# #summary(wm_m1)
+# 
+# wm_m1_an = car::Anova(wm_m1)
+# 
+# wm_m1.y = glmer(recall_acc ~ 1 + item_type + (1 + item_type | participant), 
+#               data = subset(wm_dat, group=="younger"), 
+#               family = binomial(link = "logit"))
+# 
+# wm_m1.o = glmer(recall_acc ~ 1 + item_type + (1 + item_type | participant), 
+#               data = subset(wm_dat, group=="older"), 
+#               family = binomial(link = "logit"))
+# 
+# # summary(wm_m1.y)
+# # summary(wm_m1.o)
+# 
+# # recode item type
+# wm_dat$pif = "new-new"
+# wm_dat$pif[wm_dat$item_type == "match"] = "match"
+# wm_dat$pif[wm_dat$item_type %in% c("old-new", "mis-match")] = "non-match"
+# 
+# wm_dat$pif = as.factor(wm_dat$pif)
+# 
+# contrasts(wm_dat$pif) = cbind(PF = c(1,-1/2,-1/2), 
+#                                         PI=c(0,1,-1))
+# 
+# wm_m2 = glmer(recall_acc ~ 1 + group*pif + (1 + pif | participant), 
+#               data = wm_dat, 
+#               family = binomial(link = "logit"))
+# 
+# #summary(wm_m2)
+# 
+# #car::Anova(wm_m2)
+# 
+# # regular anova
+# wm_aov1 = ezANOVA(wm_agg, dv = acc, wid = participant, 
+#                   within = item_type, between = group)
+# 
+# t_match = t.test(acc ~ group, data = subset(wm_agg, item_type=="match"), var.equal=T)
+# t_new = t.test(acc ~ group, data = subset(wm_agg, item_type=="new-new"), var.equal=T)
+# t_mismatch = t.test(acc ~ group, data = subset(wm_agg, item_type=="mis-match"), var.equal=T)
+# t_oldnew = t.test(acc ~ group, data = subset(wm_agg, item_type=="old-new"), var.equal=T)
+# 
+# wm_aov2 = ezANOVA(subset(wm_agg, item_type != "match"), dv = acc, wid = participant, 
+#                   within = item_type, between = group)
+
+```
+
+Accuracy in the working memory task is presented above. This data is analyzed with a generalized mixed effects model (logistic regression), which is arguably more appropriate for this binary (correct/incorrect) data, and ANOVA. 
+
+## Logistic model
+
+For this analysis the factor of item type was coded so that (1) match items were compared to the other three item types, (2) new-new items were compared to mis-match and old-new items, and (3) mis-match items were contrasted with old-new items. For age group, older was coded -1 and younger was coded +1. Random participant intercepts and effects of item type were also included.
+
+There was a main effect of age, `r print_chi(wm_m1_an, 1)`, and item type, `r print_chi(wm_m1_an, 2)`, but the interaction is not significant, `r print_chi(wm_m1_an, 3)`.
+
+Looking at the more focused interaction contrasts, the difference between match items and the other items types (contrast 1) does not vary by age group, `r print_coef(wm_m1, 6)`. The difference between new-new and the mis-match/old-new items (contrast 2) is significantly larger for older adults, `r print_coef(wm_m1, 7)`. As a follow up we fit the model to younger and older adults separately. Contrast 2 is significant for the older group, `r print_coef(wm_m1.o, 3)`, but not the younger group, `r print_coef(wm_m1.y, 3)` (see figure). Finally, the difference between mis-match and old-new (contrast 3) does not significantly vary by age, `r print_coef(wm_m1, 8)`.
+
+## ANOVA 
+
+The table below presents the results of an ANOVA on accuracy. Follow up $t$-tests find a significant age difference for match, `r  print_t(t_match, addbf = F)`, mis-match, `r  print_t(t_mismatch, addbf = F)`, old-new, `r  print_t(t_oldnew, addbf = F)`, and new-new items, `r  print_t(t_new, addbf = F)`. Effects sizes are a little smaller for match and new-new items.
+
+```{r}
+knitr::kable(wm_aov1$ANOVA, digits = 3)
+```
+
+For a more focused test of proactive interference the next ANOVA omits match items. The interaction is not significant in this analysis.
+
+```{r}
+knitr::kable(wm_aov2$ANOVA, digits = 3)
+```
+
+# Summary
+
+- Despite the 'adaptive' learning procedure, older adults reach a lower level of learning
+- Clear main effect of age on working memory performance
+- Some evidence (from logistic model) that older adults show PI in the working memory task whereas younger adults do not
+
+```{r}
+
+wr = F
+
+if (wr){
+  # write cleaned data to csvs
+  write.csv(x = wm_dat, file = "exp2_wm.csv", row.names = F)
+  write.csv(x = learn_dat, file = "exp2_learn.csv", row.names = F)
+  write.csv(x = search_dat, file = "exp2_search.csv", row.names = F)
+}
+
+```

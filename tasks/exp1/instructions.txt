@@ -1,0 +1,152 @@
+
+# prolific description
+
+Memory for pairs of images and words
+
+This study aims to explore how we remember random pairings of images and words. The study is split into two sections. The first section looks at how long it takes to learn different image-word pairs. The second section looks at short term memory for pairs. In both sections we test your memory by presenting an image and having you type the associated word on the keyboard so please make sure you have a full keyboard and you are able to type relatively quickly (we allow 10 seconds to type each word). The study should take 30-40 minutes to complete. 
+
+
+# consent
+
+Thank you for volunteering to take part in this study conducted by researchers at the Department of Psychology at the University of Toronto. In this study we are looking at memory for random pairs of images and words. The images are drawings of everyday objects and the words are nouns with 4-6 letters. The study is split into two parts: The first part assesses learning of image-word pairs and the second part looks at short-term memory. In both parts your memory will be tested by presenting an image and asking you to recall the associated word by typing on the keyboard.
+
+The data we collect for this study concerns the accuracy and speed of memory recall. These data will be stored in an anonymised format (using the ID assigned to you by prolific) and may be shared with other researchers via public data repositories (such as the open science framework; www.osf.io). You may exit the study at any time without penalty by pressing the escape key.
+
+If you consent to take part in this study, please press ‘Y’
+
+If you do not consent to take part, please press the escape key and close this window
+
+
+# welcome
+
+This experiment is split into two sections.
+
+We will let you know what you need to do at the beginning of each section.
+
+Press SPACE to start.
+
+
+PART 1
+
+
+# learn_instr1
+
+[examples: word = TOUGH, image = #747]
+
+In this section of the experiment we will present you with pairs of images and words to learn. An example pair is shown above. Press SPACE to continue.
+
+
+
+# learn_instr2
+
+There are 30 pairs to learn and we will present them in groups of 10.
+
+The 10 pairs will be presented in sequences and after they have been presented you will be asked to recall the word associated with each image.
+
+Press SPACE to continue.
+
+
+# learn_instr3
+
+During recall you will see an image you previously saw. You will have up to 10 seconds to recall the word associated with the image by typing it on the keyboard. Once the 10 seconds are up the task will move on automatically.
+
+When you have finished typing press the enter (or return) key to submit. If you can't remember the word you can press enter to pass. You can also delete mistakes using the backspace key.
+
+Press SPACE to continue.
+
+
+# learn_instr4
+
+You will get feedback on whether the word you recall is right or wrong. The word will turn green if it is right. If it is wrong the word you typed will turn red then you will see the correct word with the image again.
+
+On the next screen you will see the image you saw before. Please type in the word that you saw with it and press enter (or return) to submit.
+
+Press SPACE to continue.
+
+
+# learn_instr5
+
+Great! You will now have a chance to practice this task. During practice you will see 5 pairs to remember and then recall.
+
+Press SPACE to start.
+
+
+# learn_end_prac
+
+End of practice.
+
+We will now go though all of the pairs in groups of 10. We'll keep going until you get 80% correct or until you have seen all of the pairs three times.
+
+Press SPACE when you are ready to start the main task.
+
+# begin_block
+
+Press SPACE to see the next set of 10 pairs
+
+
+# next_instr
+
+# if >= 80% or done 3
+
+Well done! You got ??% of the pairs correct. We will now move on to the next part of the experiment.
+
+Press SPACE to continue.
+
+
+# if < 80% and not done 3
+
+Well done! You got ??% of the pairs correct. We will loop through all of the pairs again in groups of 10. 
+
+Press SPACE to continue.
+
+
+
+# learn_final_instr
+
+Now we will ask you about all of the 30 pairs you have been learning.
+
+Each image will be presented and your task is to recall the word associated with the image. Remember, you have 10 seconds to type your answer and press enter (or return) to submit.
+
+Press SPACE to start.
+
+# end_learn
+
+That is the end of the first section.
+
+Press SPACE to continue.
+
+
+SECTION 2
+
+# wm_instr
+
+The task in this section also uses pairs of images and words but is different from the task you did in section 1. In this section we are looking at short-term memory for pairs.
+
+In this task you will be presented with sequences of 4 image-word pairs to hold in mind over a 2 second interval.
+
+Press SPACE to continue.
+
+# wm_instr2
+
+After the 2 second interval you will be asked to recall the word associated with each image by typing it on the keyboard then pressing enter (or return) to submit. There won't be any feedback in this section.
+
+Next we will give you 3 example sequences to practice this task.
+
+Press SPACE to start.
+
+
+
+End of practice.
+
+Press SPACE to start the main task.
+
+
+
+
+# end_exp
+
+That's the end of the experiment!
+
+Thank you for taking part.
+
+Please wait a moment for the data to be saved...
